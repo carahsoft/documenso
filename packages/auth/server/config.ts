@@ -26,6 +26,16 @@ export const GoogleAuthOptions: OAuthClientOptions = {
   bypassEmailVerification: false,
 };
 
+export const EntraAuthOptions: OAuthClientOptions = {
+  id: 'entra',
+  scope: ['openid', 'email', 'profile'],
+  clientId: env('NEXT_PRIVATE_ENTRA_CLIENT_ID') ?? '',
+  clientSecret: env('NEXT_PRIVATE_ENTRA_CLIENT_SECRET') ?? '',
+  redirectUrl: `${NEXT_PUBLIC_WEBAPP_URL()}/api/auth/callback/entra`,
+  wellKnownUrl: `https://login.microsoftonline.com/${env('NEXT_PRIVATE_ENTRA_TENANT_ID') ?? 'common'}/v2.0/.well-known/openid-configuration`,
+  bypassEmailVerification: true,
+};
+
 export const OidcAuthOptions: OAuthClientOptions = {
   id: 'oidc',
   scope: ['openid', 'email', 'profile'],
