@@ -2,11 +2,16 @@ import { OrganisationType } from '@prisma/client';
 
 import { createCheckoutSession } from '@documenso/ee/server-only/stripe/create-checkout-session';
 import { createCustomer } from '@documenso/ee/server-only/stripe/create-customer';
-import { IS_BILLING_ENABLED, NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
+import {
+  ADMIN_CREATE_ORGANISATION_ENABLED,
+  IS_BILLING_ENABLED,
+  NEXT_PUBLIC_WEBAPP_URL,
+} from '@documenso/lib/constants/app';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { createOrganisation } from '@documenso/lib/server-only/organisation/create-organisation';
 import { INTERNAL_CLAIM_ID, internalClaims } from '@documenso/lib/types/subscription';
 import { generateStripeOrganisationCreateMetadata } from '@documenso/lib/utils/billing';
+import { isAdmin } from '@documenso/lib/utils/is-admin';
 import { prisma } from '@documenso/prisma';
 
 import { authenticatedProcedure } from '../trpc';
@@ -22,6 +27,13 @@ export const createOrganisationRoute = authenticatedProcedure
   .mutation(async ({ input, ctx }) => {
     const { name, priceId } = input;
     const { user } = ctx;
+
+    // Only admins can create organisations when ADMIN_CREATE_ORGANISATION is enabled
+    if (ADMIN_CREATE_ORGANISATION_ENABLED() && !isAdmin(user)) {
+      throw new AppError(AppErrorCode.UNAUTHORIZED, {
+        message: 'Only administrators can create organisations.',
+      });
+    }
 
     ctx.logger.info({
       input: {

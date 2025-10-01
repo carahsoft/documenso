@@ -66,6 +66,7 @@ declare namespace NodeJS {
     NEXT_PRIVATE_SMTP_FROM_ADDRESS?: string;
 
     NEXT_PUBLIC_DISABLE_SIGNUP?: string;
+    NEXT_PUBLIC_ADMIN_CREATE_ORGANISATION?: string;
 
     NEXT_PRIVATE_BROWSERLESS_URL?: string;
 
