@@ -222,6 +222,23 @@ export class AuthClient {
     },
   };
 
+  public entra = {
+    signIn: async ({ redirectPath }: { redirectPath?: string } = {}) => {
+      const response = await this.client['oauth'].authorize.entra.$post({
+        json: { redirectPath },
+      });
+
+      await this.handleError(response);
+
+      const data = await response.json();
+
+      // Redirect to external Entra auth URL.
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
+    },
+  };
+
   public oidc = {
     signIn: async ({ redirectPath }: { redirectPath?: string } = {}) => {
       const response = await this.client['oauth'].authorize.oidc.$post({ json: { redirectPath } });
