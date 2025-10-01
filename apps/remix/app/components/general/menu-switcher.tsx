@@ -8,6 +8,7 @@ import { Link } from 'react-router';
 
 import { authClient } from '@documenso/auth/client';
 import { useSession } from '@documenso/lib/client-only/providers/session';
+import { ADMIN_CREATE_ORGANISATION_ENABLED } from '@documenso/lib/constants/app';
 import { formatAvatarUrl } from '@documenso/lib/utils/avatars';
 import { isAdmin } from '@documenso/lib/utils/is-admin';
 import { extractInitials } from '@documenso/lib/utils/recipient-formatter';
@@ -31,6 +32,7 @@ export const MenuSwitcher = () => {
   const [languageSwitcherOpen, setLanguageSwitcherOpen] = useState(false);
 
   const isUserAdmin = isAdmin(user);
+  const canCreateOrganisation = !ADMIN_CREATE_ORGANISATION_ENABLED() || isUserAdmin;
 
   const formatAvatarFallback = (name?: string) => {
     if (name !== undefined) {
@@ -66,16 +68,20 @@ export const MenuSwitcher = () => {
         align="end"
         forceMount
       >
-        <DropdownMenuItem className="text-muted-foreground px-4 py-2" asChild>
-          <Link
-            to="/settings/organisations?action=add-organisation"
-            className="flex items-center justify-between"
-          >
-            <Trans>Create Organisation</Trans>
-            <Plus className="ml-2 h-4 w-4" />
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        {canCreateOrganisation && (
+          <>
+            <DropdownMenuItem className="text-muted-foreground px-4 py-2" asChild>
+              <Link
+                to="/settings/organisations?action=add-organisation"
+                className="flex items-center justify-between"
+              >
+                <Trans>Create Organisation</Trans>
+                <Plus className="ml-2 h-4 w-4" />
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
 
         {isUserAdmin && (
           <DropdownMenuItem className="text-muted-foreground px-4 py-2" asChild>
