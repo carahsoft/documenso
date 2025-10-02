@@ -1,10 +1,11 @@
-import { UserSecurityAuditLogType } from '@prisma/client';
+import { OrganisationGroupType, UserSecurityAuditLogType } from '@prisma/client';
 import { OAuth2Client, decodeIdToken } from 'arctic';
 import type { Context } from 'hono';
 import { deleteCookie } from 'hono/cookie';
 
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { onCreateUserHook } from '@documenso/lib/server-only/user/create-user';
+import { generateDatabaseId } from '@documenso/lib/universal/id';
 import { prisma } from '@documenso/prisma';
 
 import type { OAuthClientOptions } from '../../config';
@@ -22,8 +23,16 @@ export const handleOAuthCallbackUrl = async (options: HandleOAuthCallbackUrlOpti
 
   const requestMeta = c.get('requestMetadata');
 
-  const { email, name, sub, accessToken, accessTokenExpiresAt, idToken, redirectPath } =
+  const { email, name, sub, accessToken, accessTokenExpiresAt, idToken, redirectPath, claims } =
     await validateOauth({ c, clientOptions });
+
+  // Extract groups claim from token (Entra returns groups as an array of group names)
+  const groupsClaim = claims.groups;
+  let groupNames: string[] = [];
+
+  if (Array.isArray(groupsClaim)) {
+    groupNames = groupsClaim.filter((g) => typeof g === 'string') as string[];
+  }
 
   // Find the account if possible.
   const existingAccount = await prisma.account.findFirst({
@@ -42,6 +51,14 @@ export const handleOAuthCallbackUrl = async (options: HandleOAuthCallbackUrlOpti
 
   // Directly log in user if account already exists.
   if (existingAccount) {
+    // Check if user needs to be added to any new groups
+    if (groupNames.length > 0) {
+      await addUserToMatchingOrganisationGroups({
+        userId: existingAccount.user.id,
+        groupNames,
+      });
+    }
+
     await onAuthorize({ userId: existingAccount.user.id }, c);
 
     return c.redirect(redirectPath, 302);
@@ -99,6 +116,14 @@ export const handleOAuthCallbackUrl = async (options: HandleOAuthCallbackUrlOpti
       }
     });
 
+    // Add user to matching organization groups
+    if (groupNames.length > 0) {
+      await addUserToMatchingOrganisationGroups({
+        userId: userWithSameEmail.id,
+        groupNames,
+      });
+    }
+
     await onAuthorize({ userId: userWithSameEmail.id }, c);
 
     return c.redirect(redirectPath, 302);
@@ -134,6 +159,14 @@ export const handleOAuthCallbackUrl = async (options: HandleOAuthCallbackUrlOpti
     // Todo: (RR7) Add logging.
     console.error(err);
   });
+
+  // Add user to matching organization groups
+  if (groupNames.length > 0) {
+    await addUserToMatchingOrganisationGroups({
+      userId: createdUser.id,
+      groupNames,
+    });
+  }
 
   await onAuthorize({ userId: createdUser.id }, c);
 
@@ -226,5 +259,121 @@ export const validateOauth = async (options: HandleOAuthCallbackUrlOptions) => {
     accessTokenExpiresAt,
     idToken,
     redirectPath,
+    claims,
   };
+};
+
+/**
+ * Finds all organization groups matching the provided group names and adds the user to them.
+ */
+const addUserToMatchingOrganisationGroups = async ({
+  userId,
+  groupNames,
+}: {
+  userId: number;
+  groupNames: string[];
+}) => {
+  // Find all organisation groups where the name matches any of the group names
+  const matchingGroups = await prisma.organisationGroup.findMany({
+    where: {
+      name: {
+        in: groupNames,
+      },
+      type: OrganisationGroupType.CUSTOM,
+    },
+    include: {
+      organisation: true,
+    },
+  });
+
+  if (matchingGroups.length === 0) {
+    return;
+  }
+
+  // Group by organisation to process each organisation separately
+  const groupsByOrganisation = matchingGroups.reduce(
+    (acc, group) => {
+      const orgId = group.organisationId;
+
+      if (!acc[orgId]) {
+        acc[orgId] = [];
+      }
+
+      acc[orgId].push(group);
+
+      return acc;
+    },
+    {} as Record<string, typeof matchingGroups>,
+  );
+
+  // For each organisation, add the user as a member and add them to the matching groups
+  for (const [organisationId, groups] of Object.entries(groupsByOrganisation)) {
+    await prisma.$transaction(
+      async (tx) => {
+        // Check if user is already a member of this organisation
+        let organisationMember = await tx.organisationMember.findFirst({
+          where: {
+            userId,
+            organisationId,
+          },
+        });
+
+        // If not a member, create organisation member
+        if (!organisationMember) {
+          // Find the default internal organisation group for this organisation
+          const defaultGroup = await tx.organisationGroup.findFirst({
+            where: {
+              organisationId,
+              type: OrganisationGroupType.INTERNAL_ORGANISATION,
+            },
+            orderBy: {
+              id: 'asc',
+            },
+          });
+
+          if (!defaultGroup) {
+            console.error(`No default organisation group found for organisation ${organisationId}`);
+
+            return;
+          }
+
+          organisationMember = await tx.organisationMember.create({
+            data: {
+              id: generateDatabaseId('member'),
+              userId,
+              organisationId,
+              organisationGroupMembers: {
+                create: {
+                  id: generateDatabaseId('group_member'),
+                  groupId: defaultGroup.id,
+                },
+              },
+            },
+          });
+        }
+
+        // Add user to all matching custom groups
+        for (const group of groups) {
+          // Check if user is already in this group
+          const existingMembership = await tx.organisationGroupMember.findFirst({
+            where: {
+              organisationMemberId: organisationMember.id,
+              groupId: group.id,
+            },
+          });
+
+          if (!existingMembership) {
+            await tx.organisationGroupMember.create({
+              data: {
+                id: generateDatabaseId('group_member'),
+                organisationMemberId: organisationMember.id,
+                groupId: group.id,
+              },
+            });
+          }
+        }
+      },
+      { timeout: 30_000 },
+    );
+  }
 };
