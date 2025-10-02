@@ -11,7 +11,14 @@ export const TemplateImage = ({ assetBaseUrl, className, staticAsset }: Template
     return new URL(path, assetBaseUrl).toString();
   };
 
-  return <Img className={className} src={getAssetUrl(`/static/${staticAsset}`)} />;
+  return (
+    <Img
+      className={className}
+      src={getAssetUrl(`/static/${staticAsset}`)}
+      style={{ display: 'block', margin: '0 auto', height: '24px', width: 'auto' }}
+      height={24}
+    />
+  );
 };
 
 export default TemplateImage;

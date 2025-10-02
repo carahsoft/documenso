@@ -16,7 +16,7 @@ export const TemplateConfirmationEmail = ({
     <>
       <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
-      <Section className="flex-row items-center justify-center">
+      <Section className="text-center">
         <Text className="text-primary mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold">
           <Trans>Welcome to Documenso!</Trans>
         </Text>
@@ -29,7 +29,7 @@ export const TemplateConfirmationEmail = ({
 
         <Section className="mb-6 mt-8 text-center">
           <Button
-            className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+            className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={confirmationLink}
           >
             <Trans>Confirm email</Trans>

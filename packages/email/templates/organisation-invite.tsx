@@ -45,9 +45,17 @@ export const OrganisationInviteEmailTemplate = ({
 
       <Body className="mx-auto my-auto font-sans">
         <Section className="bg-white text-slate-500">
-          <Container className="mx-auto mb-2 mt-8 max-w-xl rounded-lg border border-solid border-slate-200 p-2 backdrop-blur-sm">
+          <Container
+            className="mx-auto mb-2 mt-8 rounded-lg border border-solid border-slate-200 p-2"
+            style={{ border: '1px solid #e2e8f0', maxWidth: '600px' }}
+          >
             {branding.brandingEnabled && branding.brandingLogo ? (
-              <Img src={branding.brandingLogo} alt="Branding Logo" className="mb-4 h-6 p-2" />
+              <Img
+                src={branding.brandingLogo}
+                alt="Branding Logo"
+                className="mb-4 h-6 p-2"
+                style={{ display: 'block', margin: '0 auto' }}
+              />
             ) : (
               <TemplateImage
                 assetBaseUrl={assetBaseUrl}
@@ -85,13 +93,13 @@ export const OrganisationInviteEmailTemplate = ({
 
               <Section className="mb-6 mt-6 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={`${baseUrl}/organisation/invite/${token}`}
                 >
                   <Trans>Accept</Trans>
                 </Button>
                 <Button
-                  className="ml-4 inline-flex items-center justify-center rounded-lg bg-gray-50 px-6 py-3 text-center text-sm font-medium text-slate-600 no-underline"
+                  className="ml-4 inline-block rounded-lg bg-gray-50 px-6 py-3 text-center text-sm font-medium text-slate-600 no-underline"
                   href={`${baseUrl}/organisation/decline/${token}`}
                 >
                   <Trans>Decline</Trans>
