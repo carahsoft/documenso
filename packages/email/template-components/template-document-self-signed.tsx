@@ -26,7 +26,7 @@ export const TemplateDocumentSelfSigned = ({
     <>
       <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
-      <Section className="flex-row items-center justify-center">
+      <Section className="text-center">
         <Section>
           <Column align="center">
             <Text className="text-base font-semibold text-[#7AC455]">

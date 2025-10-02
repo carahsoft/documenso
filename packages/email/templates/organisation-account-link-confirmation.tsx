@@ -118,7 +118,7 @@ export const OrganisationAccountLinkConfirmationTemplate = ({
 
               <Section className="mb-6 mt-8 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={confirmationLink}
                 >
                   <Trans>Review request</Trans>

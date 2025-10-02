@@ -85,13 +85,13 @@ export const OrganisationInviteEmailTemplate = ({
 
               <Section className="mb-6 mt-6 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={`${baseUrl}/organisation/invite/${token}`}
                 >
                   <Trans>Accept</Trans>
                 </Button>
                 <Button
-                  className="ml-4 inline-flex items-center justify-center rounded-lg bg-gray-50 px-6 py-3 text-center text-sm font-medium text-slate-600 no-underline"
+                  className="ml-4 inline-block rounded-lg bg-gray-50 px-6 py-3 text-center text-sm font-medium text-slate-600 no-underline"
                   href={`${baseUrl}/organisation/decline/${token}`}
                 >
                   <Trans>Decline</Trans>
