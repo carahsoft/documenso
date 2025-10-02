@@ -3,6 +3,7 @@ import type { User } from '@prisma/client';
 
 import { prisma } from '@documenso/prisma';
 
+import { IS_PERSONAL_ORGANISATION_DISABLED } from '../../constants/app';
 import { SALT_ROUNDS } from '../../constants/auth';
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import { createPersonalOrganisation } from '../organisation/create-organisation';
@@ -66,7 +67,9 @@ export const createUser = async ({ name, email, password, signature }: CreateUse
  * @returns User
  */
 export const onCreateUserHook = async (user: User) => {
-  await createPersonalOrganisation({ userId: user.id });
+  if (!IS_PERSONAL_ORGANISATION_DISABLED()) {
+    await createPersonalOrganisation({ userId: user.id });
+  }
 
   return user;
 };
