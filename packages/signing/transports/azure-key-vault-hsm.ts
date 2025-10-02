@@ -270,8 +270,9 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 /**
  * Build a PKCS#7 signature structure
  *
- * This creates a proper PKCS#7/CMS signature structure using node-forge.
- * The signature is pre-computed by Azure Key Vault HSM.
+ * This manually constructs a PKCS#7/CMS SignedData structure using node-forge's ASN.1 API.
+ * This approach is necessary because we have a pre-computed signature from Azure Key Vault HSM
+ * and cannot access the private key (which node-forge's high-level API requires).
  */
 function buildPKCS7Signature(signature: Uint8Array, certificate: Buffer): Buffer {
   try {
@@ -290,54 +291,164 @@ function buildPKCS7Signature(signature: Uint8Array, certificate: Buffer): Buffer
 
     const cert = forge.pki.certificateFromPem(certPem);
 
-    // Create a PKCS#7 signed data structure
-    const p7 = forge.pkcs7.createSignedData();
+    // Manually construct PKCS#7 SignedData structure using ASN.1
+    // Structure: ContentInfo with signedData OID containing SignedData
 
-    // Add the certificate to the PKCS#7 structure
-    p7.addCertificate(cert);
+    // Build authenticated attributes (contentType + messageDigest)
+    const authenticatedAttributesAsn1 = forge.asn1.create(
+      forge.asn1.Class.CONTEXT_SPECIFIC,
+      0,
+      true,
+      [
+        // contentType attribute
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.OID,
+            false,
+            forge.asn1.oidToDer(forge.pki.oids.contentType).getBytes(),
+          ),
+          forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+            forge.asn1.create(
+              forge.asn1.Class.UNIVERSAL,
+              forge.asn1.Type.OID,
+              false,
+              forge.asn1.oidToDer(forge.pki.oids.data).getBytes(),
+            ),
+          ]),
+        ]),
+        // messageDigest attribute
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.OID,
+            false,
+            forge.asn1.oidToDer(forge.pki.oids.messageDigest).getBytes(),
+          ),
+          forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+            forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, ''),
+          ]),
+        ]),
+      ],
+    );
 
-    // Create the content info (empty for detached signatures)
-    p7.content = forge.util.createBuffer('');
-
-    // Build the authenticated attributes
-    const authenticatedAttributes = [
-      {
-        type: forge.pki.oids.contentType,
-        value: forge.asn1.create(
+    // Build SignerInfo
+    const signerInfo = forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.SEQUENCE,
+      true,
+      [
+        // version (1)
+        forge.asn1.create(
           forge.asn1.Class.UNIVERSAL,
-          forge.asn1.Type.OID,
+          forge.asn1.Type.INTEGER,
           false,
-          forge.asn1.oidToDer(forge.pki.oids.data).getBytes(),
+          String.fromCharCode(1),
         ),
-      },
-      {
-        type: forge.pki.oids.messageDigest,
-        value: forge.asn1.create(
+        // issuerAndSerialNumber
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.pki.distinguishedNameToAsn1(cert.issuer),
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.INTEGER,
+            false,
+            forge.util.hexToBytes(cert.serialNumber),
+          ),
+        ]),
+        // digestAlgorithm (SHA-256)
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.OID,
+            false,
+            forge.asn1.oidToDer(forge.pki.oids.sha256).getBytes(),
+          ),
+          forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
+        ]),
+        // authenticatedAttributes [0] IMPLICIT
+        authenticatedAttributesAsn1,
+        // digestEncryptionAlgorithm (RSA)
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.OID,
+            false,
+            forge.asn1.oidToDer(forge.pki.oids.rsaEncryption).getBytes(),
+          ),
+          forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
+        ]),
+        // encryptedDigest (the signature from Azure HSM)
+        forge.asn1.create(
           forge.asn1.Class.UNIVERSAL,
           forge.asn1.Type.OCTETSTRING,
           false,
-          '', // This will be replaced by the actual hash
+          forge.util.createBuffer(signature).getBytes(),
         ),
-      },
-    ];
+      ],
+    );
 
-    // Add signer info with the pre-computed signature from Azure Key Vault
-    p7.addSigner({
-      key: null, // We don't have the private key, signature is pre-computed
-      certificate: cert,
-      digestAlgorithm: forge.pki.oids.sha256,
-      authenticatedAttributes,
-    });
+    // Get certificate as ASN.1
+    const certAsn1 = forge.pki.certificateToAsn1(cert);
 
-    // Manually set the signature value since it was computed externally
-    if (p7.signers && p7.signers.length > 0) {
-      p7.signers[0].signature = forge.util.createBuffer(signature);
-    }
+    // Build SignedData structure
+    const signedData = forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.SEQUENCE,
+      true,
+      [
+        // version (1)
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.INTEGER,
+          false,
+          String.fromCharCode(1),
+        ),
+        // digestAlgorithms
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+          forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+            forge.asn1.create(
+              forge.asn1.Class.UNIVERSAL,
+              forge.asn1.Type.OID,
+              false,
+              forge.asn1.oidToDer(forge.pki.oids.sha256).getBytes(),
+            ),
+            forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
+          ]),
+        ]),
+        // contentInfo (empty for detached signature)
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+          forge.asn1.create(
+            forge.asn1.Class.UNIVERSAL,
+            forge.asn1.Type.OID,
+            false,
+            forge.asn1.oidToDer(forge.pki.oids.data).getBytes(),
+          ),
+        ]),
+        // certificates [0] IMPLICIT
+        forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [certAsn1]),
+        // signerInfos
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [signerInfo]),
+      ],
+    );
 
-    // Convert PKCS#7 to DER format
-    const asn1 = forge.pkcs7.messageToAsn1(p7);
-    const der = forge.asn1.toDer(asn1).getBytes();
+    // Wrap in ContentInfo
+    const contentInfo = forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.SEQUENCE,
+      true,
+      [
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OID,
+          false,
+          forge.asn1.oidToDer(forge.pki.oids.signedData).getBytes(),
+        ),
+        forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [signedData]),
+      ],
+    );
 
+    // Convert to DER format
+    const der = forge.asn1.toDer(contentInfo).getBytes();
     return Buffer.from(der, 'binary');
   } catch (error) {
     logger.error({ module: 'azure-key-vault-hsm', error }, 'Error building PKCS#7 signature');
