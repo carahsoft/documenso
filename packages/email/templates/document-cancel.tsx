@@ -32,15 +32,24 @@ export const DocumentCancelTemplate = ({
 
       <Body className="mx-auto my-auto bg-white font-sans">
         <Section>
-          <Container className="mx-auto mb-2 mt-8 max-w-xl rounded-lg border border-solid border-slate-200 p-4 backdrop-blur-sm">
+          <Container
+            className="mx-auto mb-2 mt-8 rounded-lg border border-solid border-slate-200 p-4"
+            style={{ border: '1px solid #e2e8f0', maxWidth: '600px' }}
+          >
             <Section>
               {branding.brandingEnabled && branding.brandingLogo ? (
-                <Img src={branding.brandingLogo} alt="Branding Logo" className="mb-4 h-6" />
+                <Img
+                  src={branding.brandingLogo}
+                  alt="Branding Logo"
+                  className="mb-4 h-6"
+                  style={{ display: 'block', margin: '0 auto' }}
+                />
               ) : (
                 <Img
                   src={getAssetUrl('/static/logo.png')}
                   alt="Documenso Logo"
                   className="mb-4 h-6"
+                  style={{ display: 'block', margin: '0 auto' }}
                 />
               )}
 

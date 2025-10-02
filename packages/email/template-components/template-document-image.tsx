@@ -1,4 +1,4 @@
-import { Column, Img, Row, Section } from '../components';
+import { Img, Section } from '../components';
 
 export interface TemplateDocumentImageProps {
   assetBaseUrl: string;
@@ -12,15 +12,12 @@ export const TemplateDocumentImage = ({ assetBaseUrl, className }: TemplateDocum
 
   return (
     <Section className={className}>
-      <Row className="table-fixed">
-        <Column />
-
-        <Column>
-          <Img className="h-42 mx-auto" src={getAssetUrl('/static/document.png')} alt="Documenso" />
-        </Column>
-
-        <Column />
-      </Row>
+      <Img
+        className="h-42"
+        src={getAssetUrl('/static/document.png')}
+        alt="Documenso"
+        style={{ display: 'block', margin: '0 auto' }}
+      />
     </Section>
   );
 };
