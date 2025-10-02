@@ -14,6 +14,9 @@ export const IS_BILLING_ENABLED = () => env('NEXT_PUBLIC_FEATURE_BILLING_ENABLED
 export const ADMIN_CREATE_ORGANISATION_ENABLED = () =>
   env('NEXT_PUBLIC_ADMIN_CREATE_ORGANISATION') === 'true';
 
+export const IS_PERSONAL_ORGANISATION_DISABLED = () =>
+  env('NEXT_PUBLIC_DISABLE_PERSONAL_ORGANISATION') === 'true';
+
 export const API_V2_BETA_URL = '/api/v2-beta';
 
 export const SUPPORT_EMAIL = env('NEXT_PUBLIC_SUPPORT_EMAIL') ?? 'support@documenso.com';
