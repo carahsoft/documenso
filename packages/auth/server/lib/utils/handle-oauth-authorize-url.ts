@@ -57,8 +57,10 @@ export const handleOAuthAuthorizeUrl = async (options: HandleOAuthAuthorizeUrlOp
     scopes,
   );
 
-  // Allow user to select account during login.
-  url.searchParams.append('prompt', 'login');
+  // Add prompt parameter if configured for this provider.
+  if (clientOptions.prompt) {
+    url.searchParams.append('prompt', clientOptions.prompt);
+  }
 
   setCookie(c, `${clientOptions.id}_oauth_state`, state, {
     ...sessionCookieOptions,

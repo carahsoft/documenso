@@ -14,6 +14,7 @@ export type OAuthClientOptions = {
   wellKnownUrl: string;
   redirectUrl: string;
   bypassEmailVerification?: boolean;
+  prompt?: string;
 };
 
 export const GoogleAuthOptions: OAuthClientOptions = {
@@ -24,6 +25,7 @@ export const GoogleAuthOptions: OAuthClientOptions = {
   redirectUrl: `${NEXT_PUBLIC_WEBAPP_URL()}/api/auth/callback/google`,
   wellKnownUrl: 'https://accounts.google.com/.well-known/openid-configuration',
   bypassEmailVerification: false,
+  prompt: 'login',
 };
 
 export const EntraAuthOptions: OAuthClientOptions = {
@@ -44,4 +46,5 @@ export const OidcAuthOptions: OAuthClientOptions = {
   redirectUrl: `${NEXT_PUBLIC_WEBAPP_URL()}/api/auth/callback/oidc`,
   wellKnownUrl: env('NEXT_PRIVATE_OIDC_WELL_KNOWN') ?? '',
   bypassEmailVerification: env('NEXT_PRIVATE_OIDC_SKIP_VERIFY') === 'true',
+  prompt: 'login',
 };
