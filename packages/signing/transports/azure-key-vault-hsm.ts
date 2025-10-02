@@ -5,7 +5,9 @@ import { CryptographyClient } from '@azure/keyvault-keys';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 
+import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { env } from '@documenso/lib/utils/env';
+import { logger } from '@documenso/lib/utils/logger';
 
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
@@ -22,20 +24,31 @@ export type SignWithAzureKeyVaultHSMOptions = {
  * and ClientSecretCredential (for service principal authentication).
  */
 export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSMOptions) => {
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Starting Azure Key Vault HSM signing process');
+
   const keyVaultUrl = env('NEXT_PRIVATE_SIGNING_AZURE_KEY_VAULT_URL');
   const keyName = env('NEXT_PRIVATE_SIGNING_AZURE_KEY_NAME');
   const certificateName = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_NAME');
 
   if (!keyVaultUrl) {
-    throw new Error('No Azure Key Vault URL provided for Azure Key Vault HSM signing');
+    logger.error({ module: 'azure-key-vault-hsm' }, 'Azure Key Vault URL not configured');
+    throw new AppError(AppErrorCode.NOT_SETUP, {
+      message: 'No Azure Key Vault URL provided for Azure Key Vault HSM signing',
+    });
   }
 
   if (!keyName) {
-    throw new Error('No Azure Key name provided for Azure Key Vault HSM signing');
+    logger.error({ module: 'azure-key-vault-hsm' }, 'Azure Key name not configured');
+    throw new AppError(AppErrorCode.NOT_SETUP, {
+      message: 'No Azure Key name provided for Azure Key Vault HSM signing',
+    });
   }
 
   if (!certificateName) {
-    throw new Error('No Azure Certificate name provided for Azure Key Vault HSM signing');
+    logger.error({ module: 'azure-key-vault-hsm' }, 'Azure Certificate name not configured');
+    throw new AppError(AppErrorCode.NOT_SETUP, {
+      message: 'No Azure Certificate name provided for Azure Key Vault HSM signing',
+    });
   }
 
   // Set up authentication credentials
@@ -45,18 +58,53 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
   const clientId = env('NEXT_PRIVATE_SIGNING_AZURE_CLIENT_ID');
   const clientSecret = env('NEXT_PRIVATE_SIGNING_AZURE_CLIENT_SECRET');
 
-  // Use ClientSecretCredential if service principal credentials are provided
-  if (tenantId && clientId && clientSecret) {
-    credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-  } else {
-    // Otherwise use DefaultAzureCredential (supports managed identity, Azure CLI, etc.)
-    credential = new DefaultAzureCredential();
+  try {
+    // Use ClientSecretCredential if service principal credentials are provided
+    if (tenantId && clientId && clientSecret) {
+      logger.info(
+        { module: 'azure-key-vault-hsm' },
+        'Using ClientSecretCredential for authentication',
+      );
+      credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+    } else {
+      // Otherwise use DefaultAzureCredential (supports managed identity, Azure CLI, etc.)
+      logger.info(
+        { module: 'azure-key-vault-hsm' },
+        'Using DefaultAzureCredential for authentication',
+      );
+      credential = new DefaultAzureCredential();
+    }
+  } catch (error) {
+    logger.error(
+      { module: 'azure-key-vault-hsm', error },
+      'Failed to initialize Azure credentials',
+    );
+    throw new AppError(AppErrorCode.NOT_SETUP, {
+      message: 'Failed to initialize Azure credentials',
+    });
   }
 
   // Prepare PDF with placeholder
-  const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
-    pdf: await addSigningPlaceholder({ pdf }),
-  });
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Preparing PDF with signing placeholder');
+
+  let pdfWithPlaceholder: Buffer;
+  let byteRange: number[];
+
+  try {
+    const placeholderResult = updateSigningPlaceholder({
+      pdf: await addSigningPlaceholder({ pdf }),
+    });
+    pdfWithPlaceholder = placeholderResult.pdf;
+    byteRange = placeholderResult.byteRange;
+  } catch (error) {
+    logger.error(
+      { module: 'azure-key-vault-hsm', error },
+      'Failed to prepare PDF with signing placeholder',
+    );
+    throw new AppError(AppErrorCode.INVALID_BODY, {
+      message: 'Failed to prepare PDF for signing',
+    });
+  }
 
   const pdfWithoutSignature = Buffer.concat([
     new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
@@ -65,60 +113,155 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 
   const signatureLength = byteRange[2] - byteRange[1];
 
+  logger.info({ module: 'azure-key-vault-hsm', signatureLength }, 'PDF prepared with placeholder');
+
   // Get the certificate from Azure Key Vault
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Loading certificate');
+
   let cert: Buffer | null = null;
 
   const azureCertificateContents = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_CONTENTS');
 
-  if (azureCertificateContents) {
-    // Use certificate contents from environment variable if provided
-    cert = Buffer.from(azureCertificateContents, 'base64');
-  } else {
-    const azureCertificatePath = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_PATH');
-
-    if (azureCertificatePath && fs.existsSync(azureCertificatePath)) {
-      // Load certificate from file path
-      cert = Buffer.from(fs.readFileSync(azureCertificatePath));
+  try {
+    if (azureCertificateContents) {
+      // Use certificate contents from environment variable if provided
+      logger.info(
+        { module: 'azure-key-vault-hsm' },
+        'Loading certificate from environment variable',
+      );
+      cert = Buffer.from(azureCertificateContents, 'base64');
     } else {
-      // Download certificate from Azure Key Vault
-      const certificateClient = new CertificateClient(keyVaultUrl, credential);
-      const certificate = await certificateClient.getCertificate(certificateName);
+      const azureCertificatePath = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_PATH');
 
-      if (!certificate.cer) {
-        throw new Error('Certificate does not contain public key data');
+      if (azureCertificatePath && fs.existsSync(azureCertificatePath)) {
+        // Load certificate from file path
+        logger.info(
+          { module: 'azure-key-vault-hsm', path: azureCertificatePath },
+          'Loading certificate from file',
+        );
+        cert = Buffer.from(fs.readFileSync(azureCertificatePath));
+      } else {
+        // Download certificate from Azure Key Vault
+        logger.info(
+          { module: 'azure-key-vault-hsm', certificateName },
+          'Downloading certificate from Azure Key Vault',
+        );
+        const certificateClient = new CertificateClient(keyVaultUrl, credential);
+        const certificate = await certificateClient.getCertificate(certificateName);
+
+        if (!certificate.cer) {
+          logger.error(
+            { module: 'azure-key-vault-hsm', certificateName },
+            'Certificate does not contain public key data',
+          );
+          throw new AppError(AppErrorCode.NOT_FOUND, {
+            message: 'Certificate does not contain public key data',
+          });
+        }
+
+        cert = Buffer.from(certificate.cer);
       }
-
-      cert = Buffer.from(certificate.cer);
     }
+  } catch (error) {
+    logger.error({ module: 'azure-key-vault-hsm', error }, 'Failed to load certificate');
+
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    throw new AppError(AppErrorCode.NOT_FOUND, {
+      message: 'Failed to load certificate for Azure Key Vault HSM signing',
+    });
   }
 
   if (!cert) {
-    throw new Error('Failed to load certificate for Azure Key Vault HSM signing');
+    logger.error({ module: 'azure-key-vault-hsm' }, 'Certificate is null after loading');
+    throw new AppError(AppErrorCode.NOT_FOUND, {
+      message: 'Failed to load certificate for Azure Key Vault HSM signing',
+    });
   }
+
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Certificate loaded successfully');
 
   // Create cryptography client for signing
-  const cryptoClient = new CryptographyClient(`${keyVaultUrl}/keys/${keyName}`, credential);
+  logger.info({ module: 'azure-key-vault-hsm', keyName }, 'Creating cryptography client');
 
-  // Hash the content using SHA-256
-  const hash = createHash('sha256').update(pdfWithoutSignature).digest();
+  let cryptoClient: CryptographyClient;
 
-  // Sign the hash using Azure Key Vault
-  const signResult = await cryptoClient.sign('RS256' as SignatureAlgorithm, hash);
-
-  if (!signResult.result) {
-    throw new Error('Azure Key Vault signing failed: No signature returned');
+  try {
+    cryptoClient = new CryptographyClient(`${keyVaultUrl}/keys/${keyName}`, credential);
+  } catch (error) {
+    logger.error({ module: 'azure-key-vault-hsm', error }, 'Failed to create cryptography client');
+    throw new AppError(AppErrorCode.UNKNOWN_ERROR, {
+      message: 'Failed to create cryptography client',
+    });
   }
 
+  // Hash the content using SHA-256
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Hashing PDF content');
+
+  const hash = createHash('sha256').update(new Uint8Array(pdfWithoutSignature)).digest();
+
+  // Sign the hash using Azure Key Vault
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Signing hash with Azure Key Vault');
+
+  let signResult;
+
+  try {
+    signResult = await cryptoClient.sign('RS256' as SignatureAlgorithm, new Uint8Array(hash));
+  } catch (error) {
+    logger.error(
+      { module: 'azure-key-vault-hsm', error },
+      'Azure Key Vault signing operation failed',
+    );
+    throw new AppError(AppErrorCode.UNKNOWN_ERROR, {
+      message: 'Azure Key Vault signing operation failed',
+    });
+  }
+
+  if (!signResult.result) {
+    logger.error(
+      { module: 'azure-key-vault-hsm' },
+      'Azure Key Vault signing returned no signature',
+    );
+    throw new AppError(AppErrorCode.UNKNOWN_ERROR, {
+      message: 'Azure Key Vault signing failed: No signature returned',
+    });
+  }
+
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Hash signed successfully');
+
   // Build the signature in PKCS#7 format
-  const signature = buildPKCS7Signature(signResult.result, cert);
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Building PKCS#7 signature');
+
+  let signature: Buffer;
+
+  try {
+    signature = buildPKCS7Signature(signResult.result, cert);
+  } catch (error) {
+    logger.error({ module: 'azure-key-vault-hsm', error }, 'Failed to build PKCS#7 signature');
+    throw new AppError(AppErrorCode.UNKNOWN_ERROR, {
+      message: 'Failed to build PKCS#7 signature',
+    });
+  }
 
   const signatureAsHex = signature.toString('hex');
+
+  logger.info(
+    { module: 'azure-key-vault-hsm', signatureLength: signatureAsHex.length },
+    'Embedding signature into PDF',
+  );
 
   const signedPdf = Buffer.concat([
     new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
     new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
     new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
   ]);
+
+  logger.info(
+    { module: 'azure-key-vault-hsm' },
+    'PDF signed successfully with Azure Key Vault HSM',
+  );
 
   return signedPdf;
 };
