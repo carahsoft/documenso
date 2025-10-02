@@ -6,15 +6,31 @@ printf "🚀 Starting Documenso...\n\n"
 # 🔐 Check certificate configuration
 printf "🔐 Checking certificate configuration...\n"
 
-CERT_PATH="${NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH:-/opt/documenso/cert.p12}"
+SIGNING_TRANSPORT="${NEXT_PRIVATE_SIGNING_TRANSPORT:-local}"
 
-if [ -f "$CERT_PATH" ] && [ -r "$CERT_PATH" ]; then
-    printf "✅ Certificate file found and readable - document signing is ready!\n"
-else
-    printf "⚠️  Certificate not found or not readable\n"
-    printf "💡 Tip: Documenso will still start, but document signing will be unavailable\n"
-    printf "🔧 Check: http://localhost:3000/api/certificate-status for detailed status\n"
-fi
+case "$SIGNING_TRANSPORT" in
+  local)
+    CERT_PATH="${NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH:-/opt/documenso/cert.p12}"
+    if [ -f "$CERT_PATH" ] && [ -r "$CERT_PATH" ]; then
+        printf "✅ Local certificate file found and readable - document signing is ready!\n"
+    else
+        printf "⚠️  Local certificate not found or not readable\n"
+        printf "💡 Tip: Documenso will still start, but document signing will be unavailable\n"
+        printf "🔧 Check: http://localhost:3000/api/certificate-status for detailed status\n"
+    fi
+    ;;
+  azure-hsm)
+    printf "✅ Using Azure Key Vault HSM for document signing\n"
+    printf "🔧 Ensure Azure credentials and Key Vault configuration are set\n"
+    ;;
+  gcloud-hsm)
+    printf "✅ Using Google Cloud HSM for document signing\n"
+    printf "🔧 Ensure Google Cloud credentials and KMS configuration are set\n"
+    ;;
+  *)
+    printf "⚠️  Unknown signing transport: $SIGNING_TRANSPORT\n"
+    ;;
+esac
 
 printf "\n📚 Useful Links:\n"
 printf "📖 Documentation: https://docs.documenso.com\n"
