@@ -11,12 +11,13 @@ export const TemplateDocumentImage = ({ assetBaseUrl, className }: TemplateDocum
   };
 
   return (
-    <Section className={className}>
+    <Section className={className} style={{ textAlign: 'center' }}>
       <Img
-        className="h-42"
         src={getAssetUrl('/static/document.png')}
         alt="Documenso"
-        style={{ display: 'block', margin: '0 auto' }}
+        style={{ display: 'block', margin: '0 auto', height: '168px', width: 'auto' }}
+        height={168}
+        align="center"
       />
     </Section>
   );

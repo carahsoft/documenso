@@ -41,15 +41,27 @@ export const DocumentSuperDeleteEmailTemplate = ({
                 <Img
                   src={branding.brandingLogo}
                   alt="Branding Logo"
-                  className="mb-4 h-6"
-                  style={{ display: 'block', margin: '0 auto' }}
+                  className="mb-4"
+                  style={{
+                    display: 'block',
+                    margin: '0 auto 16px auto',
+                    height: '24px',
+                    width: 'auto',
+                  }}
+                  height={24}
                 />
               ) : (
                 <Img
                   src={getAssetUrl('/static/logo.png')}
                   alt="Documenso Logo"
-                  className="mb-4 h-6"
-                  style={{ display: 'block', margin: '0 auto' }}
+                  className="mb-4"
+                  style={{
+                    display: 'block',
+                    margin: '0 auto 16px auto',
+                    height: '24px',
+                    width: 'auto',
+                  }}
+                  height={24}
                 />
               )}
 
