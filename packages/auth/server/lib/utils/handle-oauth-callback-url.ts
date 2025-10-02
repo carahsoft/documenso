@@ -320,14 +320,12 @@ const addUserToMatchingOrganisationGroups = async ({
 
         // If not a member, create organisation member
         if (!organisationMember) {
-          // Find the default internal organisation group for this organisation
+          // Find the MEMBER internal organisation group for this organisation
           const defaultGroup = await tx.organisationGroup.findFirst({
             where: {
               organisationId,
               type: OrganisationGroupType.INTERNAL_ORGANISATION,
-            },
-            orderBy: {
-              id: 'asc',
+              organisationRole: 'MEMBER',
             },
           });
 
