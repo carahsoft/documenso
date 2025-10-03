@@ -43,7 +43,7 @@ export const RecipientRemovedFromDocumentTemplate = ({
                   className="mb-4"
                   style={{
                     display: 'block',
-                    margin: '0 auto 16px auto',
+                    margin: '0 0 16px 0',
                     height: '24px',
                     width: 'auto',
                   }}
@@ -56,7 +56,7 @@ export const RecipientRemovedFromDocumentTemplate = ({
                   className="mb-4"
                   style={{
                     display: 'block',
-                    margin: '0 auto 16px auto',
+                    margin: '0 0 16px 0',
                     height: '24px',
                     width: 'auto',
                   }}

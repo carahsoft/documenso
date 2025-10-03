@@ -44,7 +44,7 @@ export const TeamDeleteEmailTemplate = ({
                 src={branding.brandingLogo}
                 alt="Branding Logo"
                 className="mb-4 h-6 p-2"
-                style={{ display: 'block', margin: '0 auto' }}
+                style={{ display: 'block', margin: '0 0 16px 0' }}
               />
             ) : (
               <TemplateImage
