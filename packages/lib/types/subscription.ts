@@ -30,6 +30,8 @@ export const ZClaimFlagsSchema = z.object({
   cfr21: z.boolean().optional(),
 
   authenticationPortal: z.boolean().optional(),
+
+  sendOnBehalfOfOrganisation: z.boolean().optional(),
 });
 
 export type TClaimFlags = z.infer<typeof ZClaimFlagsSchema>;
@@ -81,6 +83,10 @@ export const SUBSCRIPTION_CLAIM_FEATURE_FLAGS: Record<
   authenticationPortal: {
     key: 'authenticationPortal',
     label: 'Authentication portal',
+  },
+  sendOnBehalfOfOrganisation: {
+    key: 'sendOnBehalfOfOrganisation',
+    label: 'Send on behalf of organisation',
   },
 };
 
@@ -164,6 +170,7 @@ export const internalClaims: InternalClaims = {
       embedSigningWhiteLabel: true,
       cfr21: true,
       authenticationPortal: true,
+      sendOnBehalfOfOrganisation: true,
     },
   },
   [INTERNAL_CLAIM_ID.EARLY_ADOPTER]: {
