@@ -40,6 +40,18 @@ export function TemplateDocumentRejected({
       <Button
         href={documentUrl}
         className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+        style={{
+          backgroundColor: '#10B981',
+          borderRadius: '8px',
+          color: '#000000',
+          display: 'inline-block',
+          fontSize: '14px',
+          fontWeight: 500,
+          lineHeight: '1.5',
+          padding: '12px 24px',
+          textAlign: 'center',
+          textDecoration: 'none',
+        }}
       >
         <Trans>View Document</Trans>
       </Button>

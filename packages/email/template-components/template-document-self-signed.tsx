@@ -61,6 +61,20 @@ export const TemplateDocumentSelfSigned = ({
           <Button
             href={signUpUrl}
             className="mr-4 rounded-lg border border-solid border-slate-200 px-4 py-2 text-center text-sm font-medium text-black no-underline"
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              color: '#000000',
+              display: 'inline-block',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '1.5',
+              padding: '8px 16px',
+              textAlign: 'center',
+              textDecoration: 'none',
+              marginRight: '16px',
+            }}
           >
             <Img
               src={getAssetUrl('/static/user-plus.png')}
@@ -72,6 +86,19 @@ export const TemplateDocumentSelfSigned = ({
           <Button
             className="rounded-lg border border-solid border-slate-200 px-4 py-2 text-center text-sm font-medium text-black no-underline"
             href="https://documenso.com/pricing"
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              color: '#000000',
+              display: 'inline-block',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '1.5',
+              padding: '8px 16px',
+              textAlign: 'center',
+              textDecoration: 'none',
+            }}
           >
             <Img
               src={getAssetUrl('/static/review.png')}

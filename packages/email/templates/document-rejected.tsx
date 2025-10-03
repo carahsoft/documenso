@@ -39,7 +39,7 @@ export function DocumentRejectedEmail({
         <Section>
           <Container
             className="mx-auto mb-2 mt-8 rounded-lg border border-solid border-slate-200 p-4"
-            style={{ border: '1px solid #e2e8f0', maxWidth: '600px' }}
+            style={{ border: '1px solid #e2e8f0', maxWidth: '600px', padding: '32px' }}
           >
             <Section>
               {branding.brandingEnabled && branding.brandingLogo ? (
@@ -79,7 +79,10 @@ export function DocumentRejectedEmail({
             </Section>
           </Container>
 
-          <Container className="mx-auto max-w-xl">
+          <Container
+            className="mx-auto max-w-xl"
+            style={{ maxWidth: '600px', paddingLeft: '32px', paddingRight: '32px' }}
+          >
             <TemplateFooter />
           </Container>
         </Section>

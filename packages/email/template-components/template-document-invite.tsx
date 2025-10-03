@@ -101,6 +101,19 @@ export const TemplateDocumentInvite = ({
           <Button
             className="mr-4 inline-block rounded-lg bg-red-500 px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={rejectDocumentLink}
+            style={{
+              backgroundColor: '#ef4444',
+              borderRadius: '8px',
+              color: '#000000',
+              display: 'inline-block',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '1.5',
+              marginRight: '16px',
+              padding: '12px 24px',
+              textAlign: 'center',
+              textDecoration: 'none',
+            }}
           >
             <Trans>Reject Document</Trans>
           </Button>
@@ -108,6 +121,18 @@ export const TemplateDocumentInvite = ({
           <Button
             className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={signDocumentLink}
+            style={{
+              backgroundColor: '#10B981',
+              borderRadius: '8px',
+              color: '#000000',
+              display: 'inline-block',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '1.5',
+              padding: '12px 24px',
+              textAlign: 'center',
+              textDecoration: 'none',
+            }}
           >
             {match(role)
               .with(RecipientRole.SIGNER, () => <Trans>Sign Document</Trans>)
