@@ -97,7 +97,7 @@ export const TemplateDocumentInvite = ({
             .exhaustive()}
         </Text>
 
-        <Section className="mb-6 mt-8 text-center">
+        <Section className="mb-6 mt-8 text-center" style={{ textAlign: 'center' }}>
           <Button
             className="mr-4 inline-block rounded-lg bg-red-500 px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={rejectDocumentLink}
@@ -109,7 +109,7 @@ export const TemplateDocumentInvite = ({
               fontSize: '14px',
               fontWeight: 500,
               lineHeight: '1.5',
-              marginRight: '16px',
+              margin: '0 8px 0 0',
               padding: '12px 24px',
               textAlign: 'center',
               textDecoration: 'none',
@@ -117,7 +117,8 @@ export const TemplateDocumentInvite = ({
           >
             <Trans>Reject Document</Trans>
           </Button>
-
+          {/* Non-breaking space for Outlook spacing */}
+          &nbsp;&nbsp;&nbsp;
           <Button
             className="bg-documenso-500 inline-block rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={signDocumentLink}
@@ -129,6 +130,7 @@ export const TemplateDocumentInvite = ({
               fontSize: '14px',
               fontWeight: 500,
               lineHeight: '1.5',
+              margin: '0',
               padding: '12px 24px',
               textAlign: 'center',
               textDecoration: 'none',
