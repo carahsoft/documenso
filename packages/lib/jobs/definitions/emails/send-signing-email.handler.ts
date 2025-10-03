@@ -59,6 +59,11 @@ export const run = async ({
           select: {
             teamEmail: true,
             name: true,
+            organisation: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -84,7 +89,7 @@ export const run = async ({
     return;
   }
 
-  const { branding, emailLanguage, settings, organisationType, senderEmail, replyToEmail } =
+  const { branding, emailLanguage, settings, organisationType, senderEmail, replyToEmail, claims } =
     await getEmailContext({
       emailType: 'RECIPIENT',
       source: {
@@ -128,7 +133,12 @@ export const run = async ({
   }
 
   if (organisationType === OrganisationType.ORGANISATION) {
-    emailSubject = i18n._(msg`${team.name} invited you to ${recipientActionVerb} a document`);
+    // Use organisation name if the flag is enabled, otherwise use team name
+    const displayName = claims.flags.sendOnBehalfOfOrganisation
+      ? team?.organisation?.name || team.name
+      : team.name;
+
+    emailSubject = i18n._(msg`${displayName} invited you to ${recipientActionVerb} a document`);
     emailMessage = customEmail?.message ?? '';
 
     if (!emailMessage) {
@@ -136,8 +146,8 @@ export const run = async ({
 
       emailMessage = i18n._(
         settings.includeSenderDetails
-          ? msg`${inviterName} on behalf of "${team.name}" has invited you to ${recipientActionVerb} the document "${document.title}".`
-          : msg`${team.name} has invited you to ${recipientActionVerb} the document "${document.title}".`,
+          ? msg`${inviterName} on behalf of "${displayName}" has invited you to ${recipientActionVerb} the document "${document.title}".`
+          : msg`${displayName} has invited you to ${recipientActionVerb} the document "${document.title}".`,
       );
     }
   }
@@ -164,7 +174,9 @@ export const run = async ({
     role: recipient.role,
     selfSigner,
     organisationType,
-    teamName: team?.name,
+    teamName: claims.flags.sendOnBehalfOfOrganisation
+      ? team?.organisation?.name || team?.name
+      : team?.name,
     teamEmail: team?.teamEmail?.email,
     includeSenderDetails: settings.includeSenderDetails,
   });
