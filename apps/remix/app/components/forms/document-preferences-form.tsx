@@ -94,6 +94,10 @@ export const DocumentPreferencesForm = ({
 
   const placeholderEmail = user.email ?? 'user@example.com';
 
+  // Check if the "Send on behalf of organisation" flag is enabled
+  const sendOnBehalfOfOrg =
+    currentOrganisation.organisationClaim?.flags?.sendOnBehalfOfOrganisation ?? false;
+
   const ZDocumentPreferencesFormSchema = z.object({
     documentVisibility: z.nativeEnum(DocumentVisibility).nullable(),
     documentLanguage: z.enum(SUPPORTED_LANGUAGE_CODES).nullable(),
@@ -341,7 +345,11 @@ export const DocumentPreferencesForm = ({
               render={({ field }) => (
                 <FormItem className="flex-1">
                   <FormLabel>
-                    <Trans>Send on Behalf of Team</Trans>
+                    {sendOnBehalfOfOrg ? (
+                      <Trans>Send on Behalf of Organisation</Trans>
+                    ) : (
+                      <Trans>Send on Behalf of Team</Trans>
+                    )}
                   </FormLabel>
 
                   <FormControl>
@@ -384,9 +392,20 @@ export const DocumentPreferencesForm = ({
 
                     <Alert variant="neutral" className="mt-1 px-2.5 py-1.5 text-sm">
                       {field.value ? (
+                        sendOnBehalfOfOrg ? (
+                          <Trans>
+                            "{placeholderEmail}" on behalf of {currentOrganisation.name} has invited
+                            you to sign "example document".
+                          </Trans>
+                        ) : (
+                          <Trans>
+                            "{placeholderEmail}" on behalf of "Team Name" has invited you to sign
+                            "example document".
+                          </Trans>
+                        )
+                      ) : sendOnBehalfOfOrg ? (
                         <Trans>
-                          "{placeholderEmail}" on behalf of "Team Name" has invited you to sign
-                          "example document".
+                          {currentOrganisation.name} has invited you to sign "example document".
                         </Trans>
                       ) : (
                         <Trans>"Team Name" has invited you to sign "example document".</Trans>
