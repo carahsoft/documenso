@@ -72,7 +72,10 @@ export const ResetPasswordTemplate = ({
             </Section>
           </Container>
 
-          <Container className="mx-auto mt-12 max-w-xl">
+          <Container
+            className="mx-auto mt-12 max-w-xl"
+            style={{ maxWidth: '600px', paddingLeft: '32px', paddingRight: '32px' }}
+          >
             <Section>
               <Text className="my-4 text-base font-semibold">
                 <Trans>
@@ -101,7 +104,10 @@ export const ResetPasswordTemplate = ({
             </Section>
           </Container>
 
-          <Hr className="mx-auto mt-12 max-w-xl" />
+          <Hr
+            className="mx-auto mt-12 max-w-xl"
+            style={{ maxWidth: '600px', paddingLeft: '32px', paddingRight: '32px' }}
+          />
 
           <Container
             className="mx-auto max-w-xl"

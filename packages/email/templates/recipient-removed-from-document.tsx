@@ -77,7 +77,10 @@ export const RecipientRemovedFromDocumentTemplate = ({
             </Section>
           </Container>
 
-          <Hr className="mx-auto mt-12 max-w-xl" />
+          <Hr
+            className="mx-auto mt-12 max-w-xl"
+            style={{ maxWidth: '600px', paddingLeft: '32px', paddingRight: '32px' }}
+          />
 
           <Container
             className="mx-auto max-w-xl"
