@@ -17,7 +17,6 @@ export const TemplateDocumentImage = ({ assetBaseUrl, className }: TemplateDocum
         alt="Documenso"
         style={{ display: 'block', margin: '0 auto', height: '168px', width: 'auto' }}
         height={168}
-        align="center"
       />
     </Section>
   );
