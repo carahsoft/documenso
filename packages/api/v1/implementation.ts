@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { DocumentDataType, SigningStatus } from '@prisma/client';
+import { DocumentDataType, RecipientRole, SigningStatus } from '@prisma/client';
 import { tsr } from '@ts-rest/serverless/fetch';
 import { match } from 'ts-pattern';
 
@@ -16,6 +16,7 @@ import { deleteDocument } from '@documenso/lib/server-only/document/delete-docum
 import { findDocuments } from '@documenso/lib/server-only/document/find-documents';
 import { getDocumentById } from '@documenso/lib/server-only/document/get-document-by-id';
 import { resendDocument } from '@documenso/lib/server-only/document/resend-document';
+import { sealDocument } from '@documenso/lib/server-only/document/seal-document';
 import { sendDocument } from '@documenso/lib/server-only/document/send-document';
 import { updateDocument as updateDocumentSettings } from '@documenso/lib/server-only/document/update-document';
 import { deleteField } from '@documenso/lib/server-only/field/delete-field';
@@ -216,6 +217,122 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           status: 500,
           body: {
             message: 'Error downloading the document. Please try again.',
+          },
+        };
+      }
+    },
+  ),
+
+  approveDownloadDocument: authenticatedMiddleware(
+    async (args, user, team, { logger, metadata, organisationId }) => {
+      const { id: documentId } = args.params;
+
+      logger.info({
+        input: {
+          id: documentId,
+        },
+      });
+
+      try {
+        if (process.env.NEXT_PUBLIC_UPLOAD_TRANSPORT !== 's3') {
+          return {
+            status: 500,
+            body: {
+              message: 'Please make sure the storage transport is set to S3.',
+            },
+          };
+        }
+
+        const document = await getDocumentById({
+          documentId: Number(documentId),
+          userId: user.id,
+          teamId: team?.id,
+          organisationId,
+        });
+
+        if (!document || !document.documentDataId) {
+          return {
+            status: 404,
+            body: {
+              message: 'Document not found',
+            },
+          };
+        }
+
+        if (DocumentDataType.S3_PATH !== document.documentData.type) {
+          return {
+            status: 400,
+            body: {
+              message: 'Invalid document data type',
+            },
+          };
+        }
+
+        if (!isDocumentCompleted(document.status)) {
+          const recipients = await getRecipientsForDocument({
+            documentId: Number(documentId),
+            userId: user.id,
+            teamId: team?.id,
+          });
+
+          if (recipients.length === 0) {
+            await setDocumentRecipients({
+              userId: user.id,
+              teamId: team?.id,
+              documentId: Number(documentId),
+              recipients: [
+                {
+                  email: user.email,
+                  name: user.name ?? '',
+                  role: RecipientRole.APPROVER,
+                  signingOrder: null,
+                  actionAuth: [],
+                },
+              ],
+              requestMetadata: metadata,
+            });
+
+            const updatedRecipients = await getRecipientsForDocument({
+              documentId: Number(documentId),
+              userId: user.id,
+              teamId: team?.id,
+            });
+
+            await prisma.recipient.update({
+              where: {
+                id: updatedRecipients[0].id,
+              },
+              data: {
+                signingStatus: SigningStatus.SIGNED,
+              },
+            });
+          }
+
+          await sealDocument({
+            documentId: Number(documentId),
+            sendEmail: false,
+            requestMetadata: metadata.requestMetadata,
+          });
+        }
+
+        const sealedDocument = await getDocumentById({
+          documentId: Number(documentId),
+          userId: user.id,
+          teamId: team?.id,
+          organisationId,
+        });
+
+        const { url } = await getPresignGetUrl(sealedDocument.documentData.data);
+
+        return {
+          status: 200,
+          body: { downloadUrl: url },
+        };
+      } catch (err) {
+        return {
+          status: 500,
+          body: {
+            message: 'Error processing the document approval. Please try again.',
           },
         };
       }

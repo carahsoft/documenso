@@ -6,6 +6,7 @@ import {
 } from '@documenso/trpc/server/template-router/schema';
 
 import {
+  ZApproveDownloadDocumentMutationSchema,
   ZAuthorizationHeadersSchema,
   ZCreateDocumentFromTemplateMutationResponseSchema,
   ZCreateDocumentFromTemplateMutationSchema,
@@ -78,6 +79,21 @@ export const ApiContractV1 = c.router(
         404: ZUnsuccessfulResponseSchema,
       },
       summary: 'Download a signed document when the storage transport is S3',
+    },
+
+    approveDownloadDocument: {
+      method: 'POST',
+      path: '/api/v1/documents/:id/approve-download',
+      body: ZApproveDownloadDocumentMutationSchema,
+      responses: {
+        200: ZDownloadDocumentSuccessfulSchema,
+        400: ZUnsuccessfulResponseSchema,
+        401: ZUnsuccessfulResponseSchema,
+        404: ZUnsuccessfulResponseSchema,
+        500: ZUnsuccessfulResponseSchema,
+      },
+      summary:
+        'Approve and seal a document, then return the download URL. If the document has no recipient, add the authenticated user as an approver.',
     },
 
     createDocument: {
