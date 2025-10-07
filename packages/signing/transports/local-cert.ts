@@ -62,10 +62,13 @@ export const signWithLocalCert = async ({ pdf }: SignWithLocalCertOptions) => {
     }
   }
 
+  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
+
   const signature = signWithP12({
     cert,
     content: pdfWithoutSignature,
     password: env('NEXT_PRIVATE_SIGNING_PASSPHRASE') || undefined,
+    timestampServer: timestampServerUrl,
   });
 
   const signatureAsHex = signature.toString('hex');

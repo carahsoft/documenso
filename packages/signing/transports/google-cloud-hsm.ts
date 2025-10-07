@@ -61,10 +61,13 @@ export const signWithGoogleCloudHSM = async ({ pdf }: SignWithGoogleCloudHSMOpti
     );
   }
 
+  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
+
   const signature = signWithGCloud({
     keyPath,
     cert,
     content: pdfWithoutSignature,
+    timestampServer: timestampServerUrl,
   });
 
   const signatureAsHex = signature.toString('hex');
