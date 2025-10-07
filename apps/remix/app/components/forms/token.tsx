@@ -124,7 +124,11 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
         duration: 5000,
       });
 
-      form.reset();
+      form.reset({
+        tokenName: '',
+        expirationDate: '',
+      });
+      setNoExpirationDate(false);
     } catch (err) {
       const error = AppError.parseError(err);
 
@@ -191,7 +195,12 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
 
                     <div className="flex items-center gap-x-4">
                       <FormControl className="flex-1">
-                        <Select onValueChange={field.onChange} disabled={noExpirationDate}>
+                        <Select
+                          key={field.value}
+                          value={field.value || ''}
+                          onValueChange={field.onChange}
+                          disabled={noExpirationDate}
+                        >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder={_(msg`Choose...`)} />
                           </SelectTrigger>
