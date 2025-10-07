@@ -79,7 +79,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
     };
   }),
 
-  getDocument: authenticatedMiddleware(async (args, user, team, { logger }) => {
+  getDocument: authenticatedMiddleware(async (args, user, team, { logger, organisationId }) => {
     const { id: documentId } = args.params;
 
     logger.info({
@@ -93,6 +93,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         documentId: Number(documentId),
         userId: user.id,
         teamId: team?.id,
+        organisationId,
       });
 
       const recipients = await getRecipientsForDocument({
@@ -147,33 +148,119 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
     }
   }),
 
-  downloadSignedDocument: authenticatedMiddleware(async (args, user, team, { logger }) => {
-    const { id: documentId } = args.params;
-    const { downloadOriginalDocument } = args.query;
+  downloadSignedDocument: authenticatedMiddleware(
+    async (args, user, team, { logger, organisationId }) => {
+      const { id: documentId } = args.params;
+      const { downloadOriginalDocument } = args.query;
 
-    logger.info({
-      input: {
-        id: documentId,
-      },
-    });
+      logger.info({
+        input: {
+          id: documentId,
+        },
+      });
 
-    try {
-      if (process.env.NEXT_PUBLIC_UPLOAD_TRANSPORT !== 's3') {
+      try {
+        if (process.env.NEXT_PUBLIC_UPLOAD_TRANSPORT !== 's3') {
+          return {
+            status: 500,
+            body: {
+              message: 'Please make sure the storage transport is set to S3.',
+            },
+          };
+        }
+
+        const document = await getDocumentById({
+          documentId: Number(documentId),
+          userId: user.id,
+          teamId: team?.id,
+          organisationId,
+        });
+
+        if (!document || !document.documentDataId) {
+          return {
+            status: 404,
+            body: {
+              message: 'Document not found',
+            },
+          };
+        }
+
+        if (DocumentDataType.S3_PATH !== document.documentData.type) {
+          return {
+            status: 400,
+            body: {
+              message: 'Invalid document data type',
+            },
+          };
+        }
+
+        if (!downloadOriginalDocument && !isDocumentCompleted(document.status)) {
+          return {
+            status: 400,
+            body: {
+              message: 'Document is not completed yet.',
+            },
+          };
+        }
+
+        const { url } = await getPresignGetUrl(
+          downloadOriginalDocument ? document.documentData.initialData : document.documentData.data,
+        );
+
+        return {
+          status: 200,
+          body: { downloadUrl: url },
+        };
+      } catch (err) {
         return {
           status: 500,
           body: {
-            message: 'Please make sure the storage transport is set to S3.',
+            message: 'Error downloading the document. Please try again.',
           },
         };
       }
+    },
+  ),
 
-      const document = await getDocumentById({
-        documentId: Number(documentId),
-        userId: user.id,
-        teamId: team?.id,
+  deleteDocument: authenticatedMiddleware(
+    async (args, user, team, { logger, metadata, organisationId }) => {
+      const { id: documentId } = args.params;
+
+      logger.info({
+        input: {
+          id: documentId,
+        },
       });
 
-      if (!document || !document.documentDataId) {
+      try {
+        const document = await getDocumentById({
+          documentId: Number(documentId),
+          userId: user.id,
+          teamId: team?.id,
+          organisationId,
+        });
+
+        if (!document) {
+          return {
+            status: 404,
+            body: {
+              message: 'Document not found',
+            },
+          };
+        }
+
+        const deletedDocument = await deleteDocument({
+          id: document.id,
+          userId: user.id,
+          teamId: team?.id,
+          requestMetadata: metadata,
+        });
+
+        return {
+          status: 200,
+          body: deletedDocument,
+        };
+      } catch (err) {
         return {
           status: 404,
           body: {
@@ -181,88 +268,8 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           },
         };
       }
-
-      if (DocumentDataType.S3_PATH !== document.documentData.type) {
-        return {
-          status: 400,
-          body: {
-            message: 'Invalid document data type',
-          },
-        };
-      }
-
-      if (!downloadOriginalDocument && !isDocumentCompleted(document.status)) {
-        return {
-          status: 400,
-          body: {
-            message: 'Document is not completed yet.',
-          },
-        };
-      }
-
-      const { url } = await getPresignGetUrl(
-        downloadOriginalDocument ? document.documentData.initialData : document.documentData.data,
-      );
-
-      return {
-        status: 200,
-        body: { downloadUrl: url },
-      };
-    } catch (err) {
-      return {
-        status: 500,
-        body: {
-          message: 'Error downloading the document. Please try again.',
-        },
-      };
-    }
-  }),
-
-  deleteDocument: authenticatedMiddleware(async (args, user, team, { logger, metadata }) => {
-    const { id: documentId } = args.params;
-
-    logger.info({
-      input: {
-        id: documentId,
-      },
-    });
-
-    try {
-      const document = await getDocumentById({
-        documentId: Number(documentId),
-        userId: user.id,
-        teamId: team?.id,
-      });
-
-      if (!document) {
-        return {
-          status: 404,
-          body: {
-            message: 'Document not found',
-          },
-        };
-      }
-
-      const deletedDocument = await deleteDocument({
-        id: document.id,
-        userId: user.id,
-        teamId: team?.id,
-        requestMetadata: metadata,
-      });
-
-      return {
-        status: 200,
-        body: deletedDocument,
-      };
-    } catch (err) {
-      return {
-        status: 404,
-        body: {
-          message: 'Document not found',
-        },
-      };
-    }
-  }),
+    },
+  ),
 
   createDocument: authenticatedMiddleware(async (args, user, team, { metadata }) => {
     const { body } = args;

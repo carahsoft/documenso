@@ -2,6 +2,8 @@ import { prisma } from '@documenso/prisma';
 
 import { hashString } from '../auth/hash';
 
+const ORG_TOKEN_PREFIX = '[ORG]';
+
 export const getApiTokenByToken = async ({ token }: { token: string }) => {
   const hashedToken = hashString(token);
 
@@ -62,5 +64,6 @@ export const getApiTokenByToken = async ({ token }: { token: string }) => {
   return {
     ...apiToken,
     user,
+    isOrgToken: apiToken.name.startsWith(ORG_TOKEN_PREFIX),
   };
 };

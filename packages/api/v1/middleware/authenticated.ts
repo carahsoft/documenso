@@ -31,7 +31,12 @@ export const authenticatedMiddleware = <
     args: T & { req: TsRestRequest },
     user: Pick<User, 'id' | 'email' | 'name' | 'disabled'>,
     team: Team,
-    options: { metadata: ApiRequestMetadata; logger: Logger },
+    options: {
+      metadata: ApiRequestMetadata;
+      logger: Logger;
+      organisationId?: string;
+      isOrgToken?: boolean;
+    },
   ) => Promise<R>,
 ) => {
   return async (args: T, { request }: B) => {
@@ -93,7 +98,12 @@ export const authenticatedMiddleware = <
         },
         apiToken.user,
         apiToken.team,
-        { metadata, logger: apiLogger },
+        {
+          metadata,
+          logger: apiLogger,
+          organisationId: apiToken.isOrgToken ? apiToken.team.organisation.id : undefined,
+          isOrgToken: apiToken.isOrgToken,
+        },
       );
     } catch (err) {
       console.log({ err });

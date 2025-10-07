@@ -13,6 +13,7 @@ export type GetDocumentByIdOptions = {
   userId: number;
   teamId: number;
   folderId?: string;
+  organisationId?: string;
 };
 
 export const getDocumentById = async ({
@@ -20,11 +21,13 @@ export const getDocumentById = async ({
   userId,
   teamId,
   folderId,
+  organisationId,
 }: GetDocumentByIdOptions) => {
   const { documentWhereInput } = await getDocumentWhereInput({
     documentId,
     userId,
     teamId,
+    organisationId,
   });
 
   const document = await prisma.document.findFirst({
@@ -69,17 +72,20 @@ export type GetDocumentWhereInputOptions = {
   documentId: number;
   userId: number;
   teamId: number;
+  organisationId?: string;
 };
 
 /**
  * Generate the where input for a given Prisma document query.
  *
  * This will return a query that allows a user to get a document if they have valid access to it.
+ * If organisationId is provided (for org-wide API tokens), expands access to all teams in the organisation.
  */
 export const getDocumentWhereInput = async ({
   documentId,
   userId,
   teamId,
+  organisationId,
 }: GetDocumentWhereInputOptions) => {
   const team = await getTeamById({ teamId, userId });
 
@@ -107,12 +113,22 @@ export const getDocumentWhereInput = async ({
       userId,
     },
     // Or, if they belong to the team that the document is associated with.
-    {
-      visibility: {
-        in: teamVisibilityFilters,
-      },
-      teamId: team.id,
-    },
+    // For org-wide tokens, this expands to all teams in the organisation.
+    organisationId
+      ? {
+          visibility: {
+            in: teamVisibilityFilters,
+          },
+          team: {
+            organisationId,
+          },
+        }
+      : {
+          visibility: {
+            in: teamVisibilityFilters,
+          },
+          teamId: team.id,
+        },
     // Or, if they are a recipient of the document.
     {
       status: {

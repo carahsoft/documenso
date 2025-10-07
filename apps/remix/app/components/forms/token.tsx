@@ -5,18 +5,21 @@ import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ApiToken } from '@prisma/client';
+import { OrganisationMemberRole } from '@prisma/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { match } from 'ts-pattern';
 import type { z } from 'zod';
 
 import { useCopyToClipboard } from '@documenso/lib/client-only/hooks/use-copy-to-clipboard';
+import { useOptionalCurrentOrganisation } from '@documenso/lib/client-only/providers/organisation';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { trpc } from '@documenso/trpc/react';
-import { ZCreateApiTokenRequestSchema } from '@documenso/trpc/server/api-token-router/create-api-token.types';
+import { ZCreateApiTokenBaseSchema } from '@documenso/trpc/server/api-token-router/create-api-token.types';
 import { cn } from '@documenso/ui/lib/utils';
 import { Button } from '@documenso/ui/primitives/button';
 import { Card, CardContent } from '@documenso/ui/primitives/card';
+import { Checkbox } from '@documenso/ui/primitives/checkbox';
 import {
   Form,
   FormControl,
@@ -39,6 +42,8 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useCurrentTeam } from '~/providers/team';
 
+const ORG_TOKEN_PREFIX = '[ORG]';
+
 export const EXPIRATION_DATES = {
   ONE_WEEK: msg`7 days`,
   ONE_MONTH: msg`1 month`,
@@ -47,7 +52,7 @@ export const EXPIRATION_DATES = {
   ONE_YEAR: msg`12 months`,
 } as const;
 
-const ZCreateTokenFormSchema = ZCreateApiTokenRequestSchema.pick({
+const ZCreateTokenFormSchema = ZCreateApiTokenBaseSchema.pick({
   tokenName: true,
   expirationDate: true,
 });
@@ -68,12 +73,16 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
   const [, copy] = useCopyToClipboard();
 
   const team = useCurrentTeam();
+  const organisation = useOptionalCurrentOrganisation();
 
   const { _ } = useLingui();
   const { toast } = useToast();
 
   const [newlyCreatedToken, setNewlyCreatedToken] = useState<NewlyCreatedToken | null>();
   const [noExpirationDate, setNoExpirationDate] = useState(false);
+  const [isOrgWide, setIsOrgWide] = useState(false);
+
+  const isOrgAdmin = organisation?.currentOrganisationRole === OrganisationMemberRole.ADMIN;
 
   const { mutateAsync: createTokenMutation } = trpc.apiToken.create.useMutation({
     onSuccess(data) {
@@ -112,9 +121,11 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
 
   const onSubmit = async ({ tokenName, expirationDate }: TCreateTokenFormSchema) => {
     try {
+      const finalTokenName = isOrgWide ? `${ORG_TOKEN_PREFIX} ${tokenName}` : tokenName;
+
       await createTokenMutation({
         teamId: team.id,
-        tokenName,
+        tokenName: finalTokenName,
         expirationDate: noExpirationDate ? null : expirationDate,
       });
 
@@ -125,6 +136,7 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
       });
 
       form.reset();
+      setIsOrgWide(false);
     } catch (err) {
       const error = AppError.parseError(err);
 
@@ -224,6 +236,28 @@ export const ApiTokenForm = ({ className, tokens }: ApiTokenFormProps) => {
                 </div>
               </div>
             </div>
+
+            {isOrgAdmin && (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={isOrgWide}
+                    onCheckedChange={(checked) => setIsOrgWide(!!checked)}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    <Trans>Organization-wide token</Trans>
+                  </FormLabel>
+                  <FormDescription>
+                    <Trans>
+                      This token will have access to all teams in your organization. Only
+                      organization admins can create organization-wide tokens.
+                    </Trans>
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
 
             <Button
               type="submit"
