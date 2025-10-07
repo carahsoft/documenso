@@ -133,6 +133,10 @@ export const ZDownloadDocumentSuccessfulSchema = z.object({
 
 export type TUploadDocumentSuccessfulSchema = z.infer<typeof ZUploadDocumentSuccessfulSchema>;
 
+export const ZApproveDownloadDocumentMutationSchema = null;
+
+export type TApproveDownloadDocumentMutationSchema = typeof ZApproveDownloadDocumentMutationSchema;
+
 export const ZCreateDocumentMutationSchema = z.object({
   title: z.string().min(1),
   externalId: z.string().nullish(),
