@@ -30,7 +30,10 @@ export const BulkSendCompleteEmail = ({
       <Preview>{_(msg`Bulk send operation complete for template "${templateName}"`)}</Preview>
       <Body className="mx-auto my-auto bg-white font-sans">
         <Section>
-          <Container className="mx-auto mb-2 mt-8 max-w-xl rounded-lg border border-solid border-slate-200 p-4 backdrop-blur-sm">
+          <Container
+            className="mx-auto mb-2 mt-8 w-[600px] rounded-lg border border-solid border-slate-200 p-4 backdrop-blur-sm"
+            style={{ padding: '16px', marginTop: '32px', marginBottom: '8px' }}
+          >
             <Section>
               <Text className="text-sm">
                 <Trans>Hi {userName},</Trans>
@@ -81,7 +84,7 @@ export const BulkSendCompleteEmail = ({
             </Section>
           </Container>
 
-          <Container className="mx-auto max-w-xl">
+          <Container className="mx-auto w-[600px]">
             <TemplateFooter isDocument={false} />
           </Container>
         </Section>

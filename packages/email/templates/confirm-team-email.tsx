@@ -48,13 +48,33 @@ export const ConfirmTeamEmailTemplate = ({
 
       <Body className="mx-auto my-auto font-sans">
         <Section className="bg-white">
-          <Container className="mx-auto mb-2 mt-8 max-w-xl rounded-lg border border-solid border-slate-200 px-2 pt-2 backdrop-blur-sm">
+          <Container
+            className="mx-auto mb-2 mt-8 w-[600px] rounded-lg border border-solid border-slate-200 px-2 pt-2 backdrop-blur-sm"
+            style={{
+              paddingLeft: '8px',
+              paddingRight: '8px',
+              paddingTop: '8px',
+              paddingBottom: '0px',
+              marginTop: '32px',
+              marginBottom: '8px',
+            }}
+          >
             {branding.brandingEnabled && branding.brandingLogo ? (
-              <Img src={branding.brandingLogo} alt="Branding Logo" className="mb-4 h-6 p-2" />
+              <Img
+                src={branding.brandingLogo}
+                alt="Branding Logo"
+                className="mb-4 h-6"
+                width="auto"
+                height="24"
+                style={{ padding: '8px' }}
+              />
             ) : (
               <TemplateImage
                 assetBaseUrl={assetBaseUrl}
-                className="mb-4 h-6 p-2"
+                className="mb-4 h-6"
+                width="auto"
+                height="24"
+                style={{ padding: '8px' }}
                 staticAsset="logo.png"
               />
             )}
@@ -79,9 +99,9 @@ export const ConfirmTeamEmailTemplate = ({
                 </Trans>
               </Text>
 
-              <div className="mx-auto mt-6 w-fit rounded-lg bg-gray-50 px-4 py-2 text-base font-medium text-slate-600">
+              <Section className="mx-auto mt-6 w-fit rounded-lg bg-gray-50 px-4 py-2 text-base font-medium text-slate-600">
                 {formatTeamUrl(teamUrl, baseUrl)}
-              </div>
+              </Section>
 
               <Section className="mt-6">
                 <Text className="my-0 text-sm">
@@ -113,8 +133,14 @@ export const ConfirmTeamEmailTemplate = ({
 
               <Section className="mb-6 mt-8 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="bg-documenso-500 rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={`${baseUrl}/team/verify/email/${token}`}
+                  style={{
+                    paddingLeft: '24px',
+                    paddingRight: '24px',
+                    paddingTop: '12px',
+                    paddingBottom: '12px',
+                  }}
                 >
                   <Trans>Accept</Trans>
                 </Button>
@@ -126,9 +152,9 @@ export const ConfirmTeamEmailTemplate = ({
             </Text>
           </Container>
 
-          <Hr className="mx-auto mt-12 max-w-xl" />
+          <Hr className="mx-auto mt-12 w-[600px]" style={{ marginTop: '48px' }} />
 
-          <Container className="mx-auto max-w-xl">
+          <Container className="mx-auto w-[600px]" style={{ paddingTop: '16px' }}>
             <TemplateFooter isDocument={false} />
           </Container>
         </Section>

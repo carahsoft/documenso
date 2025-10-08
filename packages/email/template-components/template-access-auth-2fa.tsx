@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 
-import { Heading, Img, Section, Text } from '../components';
+import { Heading, Section, Text } from '../components';
+import { TemplateDocumentImage } from './template-document-image';
 
 export type TemplateAccessAuth2FAProps = {
   documentTitle: string;
@@ -23,8 +24,8 @@ export const TemplateAccessAuth2FA = ({
   };
 
   return (
-    <div>
-      <Img src={getAssetUrl('/static/document.png')} alt="Document" className="mx-auto h-12 w-12" />
+    <Section>
+      <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
       <Section className="mt-8">
         <Heading className="text-center text-lg font-semibold text-slate-900">
@@ -55,6 +56,6 @@ export const TemplateAccessAuth2FA = ({
           </Trans>
         </Text>
       </Section>
-    </div>
+    </Section>
   );
 };

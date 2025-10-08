@@ -12,14 +12,16 @@ export const TemplateDocumentImage = ({ assetBaseUrl, className }: TemplateDocum
 
   return (
     <Section className={className}>
-      <Row className="table-fixed">
-        <Column />
-
-        <Column>
-          <Img className="h-42 mx-auto" src={getAssetUrl('/static/document.png')} alt="Documenso" />
+      <Row>
+        <Column align="center">
+          <Img
+            className="h-42"
+            src={getAssetUrl('/static/document.png')}
+            alt="Documenso"
+            width="168"
+            height="168"
+          />
         </Column>
-
-        <Column />
       </Row>
     </Section>
   );
