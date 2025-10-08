@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 import { AppError } from '@documenso/lib/errors/app-error';
 
-import { GoogleAuthOptions, OidcAuthOptions } from '../config';
+import { EntraAuthOptions, GoogleAuthOptions, OidcAuthOptions } from '../config';
 import { handleOAuthCallbackUrl } from '../lib/utils/handle-oauth-callback-url';
 import { handleOAuthOrganisationCallbackUrl } from '../lib/utils/handle-oauth-organisation-callback-url';
 import type { HonoAuthContext } from '../types/context';
@@ -45,4 +45,9 @@ export const callbackRoute = new Hono<HonoAuthContext>()
   /**
    * Google callback verification.
    */
-  .get('/google', async (c) => handleOAuthCallbackUrl({ c, clientOptions: GoogleAuthOptions }));
+  .get('/google', async (c) => handleOAuthCallbackUrl({ c, clientOptions: GoogleAuthOptions }))
+
+  /**
+   * Microsoft Entra ID callback verification.
+   */
+  .get('/entra', async (c) => handleOAuthCallbackUrl({ c, clientOptions: EntraAuthOptions }));
