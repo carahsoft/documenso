@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro';
 
-import { Button, Heading, Text } from '../components';
+import { Button, Heading, Section, Text } from '../components';
 
 export interface TemplateDocumentRejectedProps {
   documentName: string;
@@ -16,7 +16,7 @@ export function TemplateDocumentRejected({
   documentUrl,
 }: TemplateDocumentRejectedProps) {
   return (
-    <div className="mt-4">
+    <Section className="mt-4">
       <Heading className="mb-4 text-center text-2xl font-semibold text-slate-800">
         <Trans>Document Rejected</Trans>
       </Heading>
@@ -39,10 +39,16 @@ export function TemplateDocumentRejected({
 
       <Button
         href={documentUrl}
-        className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+        className="bg-documenso-500 rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+        style={{
+          paddingLeft: '24px',
+          paddingRight: '24px',
+          paddingTop: '12px',
+          paddingBottom: '12px',
+        }}
       >
         <Trans>View Document</Trans>
       </Button>
-    </div>
+    </Section>
   );
 }

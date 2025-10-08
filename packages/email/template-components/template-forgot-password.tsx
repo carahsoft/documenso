@@ -16,8 +16,8 @@ export const TemplateForgotPassword = ({
     <>
       <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
-      <Section className="flex-row items-center justify-center">
-        <Text className="text-primary mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold">
+      <Section>
+        <Text className="text-primary mx-auto mb-0 w-[480px] text-center text-lg font-semibold">
           <Trans>Forgot your password?</Trans>
         </Text>
 
@@ -27,8 +27,14 @@ export const TemplateForgotPassword = ({
 
         <Section className="mb-6 mt-8 text-center">
           <Button
-            className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+            className="bg-documenso-500 rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
             href={resetPasswordLink}
+            style={{
+              paddingLeft: '24px',
+              paddingRight: '24px',
+              paddingTop: '12px',
+              paddingBottom: '12px',
+            }}
           >
             <Trans>Reset Password</Trans>
           </Button>
