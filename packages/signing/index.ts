@@ -2,6 +2,7 @@ import { match } from 'ts-pattern';
 
 import { env } from '@documenso/lib/utils/env';
 
+import { signWithAzureKeyVaultHSM } from './transports/azure-key-vault-hsm';
 import { signWithGoogleCloudHSM } from './transports/google-cloud-hsm';
 import { signWithLocalCert } from './transports/local-cert';
 
@@ -15,6 +16,7 @@ export const signPdf = async ({ pdf }: SignOptions) => {
   return await match(transport)
     .with('local', async () => signWithLocalCert({ pdf }))
     .with('gcloud-hsm', async () => signWithGoogleCloudHSM({ pdf }))
+    .with('azure-hsm', async () => signWithAzureKeyVaultHSM({ pdf }))
     .otherwise(() => {
       throw new Error(`Unsupported signing transport: ${transport}`);
     });
