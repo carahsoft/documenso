@@ -25,6 +25,8 @@ docker buildx build \
     -f "$SCRIPT_DIR/Dockerfile" \
     --platform=$PLATFORM \
     --progress=plain \
+    --provenance=true \
+    --sbom=true \
     -t "documenso/documenso:latest" \
     -t "documenso/documenso:$GIT_SHA" \
     -t "documenso/documenso:$APP_VERSION" \

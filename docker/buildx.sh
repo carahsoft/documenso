@@ -26,6 +26,8 @@ docker buildx build \
     -f "$SCRIPT_DIR/Dockerfile" \
     --platform=$PLATFORM \
     --progress=plain \
+    --provenance=true \
+    --sbom=true \
     -t "documenso-base" \
     "$MONOREPO_ROOT"
 
