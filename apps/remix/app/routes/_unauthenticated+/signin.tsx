@@ -6,6 +6,7 @@ import {
   IS_ENTRA_SSO_ENABLED,
   IS_GOOGLE_SSO_ENABLED,
   IS_OIDC_SSO_ENABLED,
+  IS_SSO_ONLY,
   OIDC_PROVIDER_LABEL,
 } from '@documenso/lib/constants/auth';
 import { env } from '@documenso/lib/utils/env';
@@ -27,6 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const isEntraSSOEnabled = IS_ENTRA_SSO_ENABLED;
   const isOIDCSSOEnabled = IS_OIDC_SSO_ENABLED;
   const oidcProviderLabel = OIDC_PROVIDER_LABEL;
+  const isSSOOnly = IS_SSO_ONLY;
 
   if (isAuthenticated) {
     throw redirect('/');
@@ -37,11 +39,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     isEntraSSOEnabled,
     isOIDCSSOEnabled,
     oidcProviderLabel,
+    isSSOOnly,
   };
 }
 
 export default function SignIn({ loaderData }: Route.ComponentProps) {
-  const { isGoogleSSOEnabled, isEntraSSOEnabled, isOIDCSSOEnabled, oidcProviderLabel } = loaderData;
+  const { isGoogleSSOEnabled, isEntraSSOEnabled, isOIDCSSOEnabled, oidcProviderLabel, isSSOOnly } =
+    loaderData;
 
   return (
     <div className="w-screen max-w-lg px-4">
@@ -60,6 +64,7 @@ export default function SignIn({ loaderData }: Route.ComponentProps) {
           isEntraSSOEnabled={isEntraSSOEnabled}
           isOIDCSSOEnabled={isOIDCSSOEnabled}
           oidcProviderLabel={oidcProviderLabel}
+          isSSOOnly={isSSOOnly}
         />
 
         {env('NEXT_PUBLIC_DISABLE_SIGNUP') !== 'true' && (
