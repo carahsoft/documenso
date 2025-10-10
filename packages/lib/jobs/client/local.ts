@@ -328,6 +328,7 @@ export class LocalJobProvider extends BaseJobProvider {
           jobId,
           jobDefinitionId: backgroundJob.jobId,
           data: options,
+          isRetry: true,
         });
       }
 
