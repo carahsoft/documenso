@@ -68,6 +68,136 @@ export class LocalJobProvider extends BaseJobProvider {
     );
   }
 
+  public async processPendingJobs(): Promise<{
+    processed: number;
+    failed: number;
+    errors: Array<{ jobId: string; error: string }>;
+  }> {
+    const PENDING_JOB_TIMEOUT_MS = 1 * 60 * 1000; // 1 minutes
+    const STUCK_JOB_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const now = new Date();
+    const pendingJobThreshold = new Date(now.getTime() - PENDING_JOB_TIMEOUT_MS);
+    const stuckJobThreshold = new Date(now.getTime() - STUCK_JOB_TIMEOUT_MS);
+
+    // Find jobs that are:
+    // 1. PENDING and never processed (just failed to submit)
+    // 2. PROCESSING but stuck (updatedAt is too old, meaning the job handler crashed)
+    const pendingJobs = await prisma.backgroundJob.findMany({
+      where: {
+        OR: [
+          {
+            status: BackgroundJobStatus.PENDING,
+            updatedAt: {
+              lt: pendingJobThreshold,
+            },
+          },
+          {
+            status: BackgroundJobStatus.PROCESSING,
+            updatedAt: {
+              lt: stuckJobThreshold,
+            },
+          },
+        ],
+      },
+      orderBy: {
+        submittedAt: 'asc',
+      },
+      take: 50, // Process in batches to avoid overwhelming the system
+    });
+
+    type ErrorEntry = { jobId: string; error: string };
+
+    const results: {
+      processed: number;
+      failed: number;
+      errors: ErrorEntry[];
+    } = {
+      processed: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (const job of pendingJobs) {
+      try {
+        if (job.status === BackgroundJobStatus.PROCESSING) {
+          const resetJob = await prisma.backgroundJob.updateMany({
+            where: {
+              id: job.id,
+              status: BackgroundJobStatus.PROCESSING,
+              updatedAt: job.updatedAt, // Ensure it hasn't been updated by another process
+            },
+            data: {
+              status: BackgroundJobStatus.PENDING,
+            },
+          });
+
+          // If count is 0, another process already picked this up
+          if (resetJob.count === 0) {
+            continue;
+          }
+        }
+
+        // Parse the payload to get the trigger options
+        // Note: job.jobId contains the job definition ID (e.g., "internal.seal-document")
+        // which is used as the trigger name, not job.name which is the display name
+        const triggerOptions: SimpleTriggerJobOptions = {
+          name: job.jobId,
+          payload: job.payload,
+        };
+
+        // Resubmit the job
+        await this.submitJobToEndpoint({
+          jobId: job.id,
+          jobDefinitionId: job.jobId,
+          data: triggerOptions,
+          isRetry: true,
+        });
+
+        results.processed++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        console.error(`[JOBS:CRON] Failed to process job ${job.id}:`, error);
+      }
+    }
+
+    return results;
+  }
+
+  public getCronHandler(): (c: HonoContext) => Promise<Response | void> {
+    return async (c: HonoContext) => {
+      const req = c.req;
+
+      if (req.method !== 'POST') {
+        return c.text('Method not allowed', 405);
+      }
+
+      const cronSecret = req.header('x-cron-secret');
+      const expectedSecret = process.env.NEXT_PRIVATE_CRON_SECRET;
+
+      if (expectedSecret && cronSecret !== expectedSecret) {
+        return c.text('Unauthorized', 401);
+      }
+
+      try {
+        const results = await this.processPendingJobs();
+        return c.json(results, 200);
+      } catch (error) {
+        console.error('[JOBS:CRON] Error processing pending jobs:', error);
+        return c.json(
+          {
+            error: 'Failed to process pending jobs',
+            message: error instanceof Error ? error.message : String(error),
+          },
+          500,
+        );
+      }
+    };
+  }
+
   public getApiHandler(): (c: HonoContext) => Promise<Response | void> {
     return async (c: HonoContext) => {
       const req = c.req;
@@ -227,16 +357,26 @@ export class LocalJobProvider extends BaseJobProvider {
     }
 
     console.log('Submitting job to endpoint:', endpoint);
-    await Promise.race([
-      fetch(endpoint, {
+
+    try {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: JSON.stringify(data),
         headers,
-      }).catch(() => null),
-      new Promise((resolve) => {
-        setTimeout(resolve, 150);
-      }),
-    ]);
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+      });
+
+      if (!response.ok) {
+        console.error(
+          `[JOBS] Failed to submit job ${jobId}: ${response.status} ${response.statusText}`,
+        );
+      } else {
+        console.log(`[JOBS] Successfully submitted job ${jobId}`);
+      }
+    } catch (error) {
+      console.error(`[JOBS] Error submitting job ${jobId}:`, error);
+      // Don't throw - we want the job to stay in PENDING for retry by cron
+    }
   }
 
   private createJobRunIO(jobId: string): JobRunIO {

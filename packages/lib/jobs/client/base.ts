@@ -16,4 +16,8 @@ export abstract class BaseJobProvider {
   public getApiHandler(): (req: HonoContext) => Promise<Response | void> {
     throw new Error('Not implemented');
   }
+
+  public getCronHandler(): (req: HonoContext) => Promise<Response | void> {
+    throw new Error('Not implemented');
+  }
 }
