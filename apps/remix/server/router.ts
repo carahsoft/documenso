@@ -85,6 +85,7 @@ app.route('/api/files', filesRoute);
 // API servers.
 app.route('/api/v1', tsRestHonoApp);
 app.use('/api/jobs/*', jobsClient.getApiHandler());
+app.post('/api/jobs-cron/process', jobsClient.getCronHandler());
 app.use('/api/trpc/*', reactRouterTrpcServer);
 
 // Unstable API server routes. Order matters for these two.

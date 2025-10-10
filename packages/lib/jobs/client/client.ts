@@ -26,4 +26,8 @@ export class JobClient<T extends ReadonlyArray<JobDefinition> = []> {
   public getApiHandler() {
     return this._provider.getApiHandler();
   }
+
+  public getCronHandler() {
+    return this._provider.getCronHandler();
+  }
 }
