@@ -117,8 +117,17 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
             <ThemeSwitcher />
           </div>
 
-          <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} Documenso, Inc. <br /> All rights reserved.
+          <p className="text-muted-foreground text-xs">
+            © {new Date().getFullYear()} Documenso, Inc. <br />
+            Modified by Carahsoft Technology Corp. <br />
+            All rights reserved. Licensed under the AGPL v3.0. <br />
+            <a
+              href="https://github.com/carahsoft/documenso"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View Source Code on GitHub
+            </a>
           </p>
         </div>
       </SheetContent>

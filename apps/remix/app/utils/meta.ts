@@ -2,11 +2,11 @@ import { NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
 
 export const appMetaTags = (title?: string) => {
   const description =
-    'Join Documenso, the open signing infrastructure, and get a 10x better signing experience. Pricing starts at $30/mo. forever! Sign in now and enjoy a faster, smarter, and more beautiful document signing process. Integrates with your favorite tools, customizable, and expandable. Support our mission and become a part of our open-source community.';
+    'Carahsoft, The Trusted Government IT Solutions Provider®, is committed to helping the public sector select and implement the best IT products at the best value.';
 
   return [
     {
-      title: title ? `${title} - Documenso` : 'Documenso',
+      title: title ? `${title} - Carahsoft` : 'Carahsoft',
     },
     {
       name: 'description',
@@ -15,11 +15,11 @@ export const appMetaTags = (title?: string) => {
     {
       name: 'keywords',
       content:
-        'Documenso, open source, DocuSign alternative, document signing, open signing infrastructure, open-source community, fast signing, beautiful signing, smart templates',
+        'Carahsoft, open source, document signing, open signing infrastructure, open-source community',
     },
     {
       name: 'author',
-      content: 'Documenso, Inc.',
+      content: 'Carahsoft',
     },
     {
       name: 'robots',
@@ -27,7 +27,7 @@ export const appMetaTags = (title?: string) => {
     },
     {
       property: 'og:title',
-      content: 'Documenso - The Open Source DocuSign Alternative',
+      content: 'Carahsoft',
     },
     {
       property: 'og:description',
@@ -47,7 +47,7 @@ export const appMetaTags = (title?: string) => {
     },
     {
       name: 'twitter:site',
-      content: '@documenso',
+      content: '@carahsoft',
     },
     {
       name: 'twitter:description',
