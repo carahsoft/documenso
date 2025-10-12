@@ -16,8 +16,8 @@ export const TemplateFooter = ({ isDocument = true }: TemplateFooterProps) => {
         <Text className="my-4 text-base text-slate-400">
           <Trans>
             This document was sent using{' '}
-            <Link className="text-documenso-700" href="https://documen.so/mail-footer">
-              Documenso.
+            <Link className="text-documenso-700" href="https://www.carahsoft.com">
+              Carahsoft.
             </Link>
           </Trans>
         </Text>
@@ -36,9 +36,9 @@ export const TemplateFooter = ({ isDocument = true }: TemplateFooterProps) => {
         </Text>
       ) : (
         <Text className="my-8 text-sm text-slate-400">
-          Documenso, Inc.
+          Carahsoft
           <br />
-          2261 Market Street, #5211, San Francisco, CA 94114, USA
+          11493 Sunset Hills Road, Reston, VA 20190, USA
         </Text>
       )}
     </Section>
