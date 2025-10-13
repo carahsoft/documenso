@@ -40,7 +40,7 @@ export const DocumentCancelTemplate = ({
               {branding.brandingEnabled && branding.brandingLogo ? (
                 <Img
                   src={branding.brandingLogo}
-                  alt="Branding Logo"
+                  alt="Logo"
                   className="mb-4 h-6"
                   width="auto"
                   height="24"
@@ -49,7 +49,7 @@ export const DocumentCancelTemplate = ({
               ) : (
                 <Img
                   src={getAssetUrl('/static/logo.png')}
-                  alt="Documenso Logo"
+                  alt="Logo"
                   className="mb-4 h-6"
                   width="auto"
                   height="24"
