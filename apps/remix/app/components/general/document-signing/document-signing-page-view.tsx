@@ -129,12 +129,20 @@ export const DocumentSigningPageView = ({
     }
   };
 
+  const sendOnBehalfOfOrg =
+    document.team?.organisation?.organisationClaim?.flags?.sendOnBehalfOfOrganisation ?? false;
+
   let senderName = document.user.name ?? '';
   let senderEmail = `(${document.user.email})`;
 
-  if (includeSenderDetails) {
-    senderName = document.team?.name ?? '';
-    senderEmail = document.team?.teamEmail?.email ? `(${document.team.teamEmail.email})` : '';
+  if (!includeSenderDetails) {
+    if (sendOnBehalfOfOrg) {
+      senderName = document.team?.organisation?.name ?? '';
+      senderEmail = '';
+    } else {
+      senderName = document.team?.name ?? '';
+      senderEmail = document.team?.teamEmail?.email ? `(${document.team.teamEmail.email})` : '';
+    }
   }
 
   const selectedSigner = allRecipients?.find((r) => r.id === selectedSignerId);
@@ -194,7 +202,9 @@ export const DocumentSigningPageView = ({
                 .with(RecipientRole.VIEWER, () =>
                   includeSenderDetails ? (
                     <Trans>
-                      on behalf of "{document.team?.name}" has invited you to view this document
+                      on behalf of{' '}
+                      {sendOnBehalfOfOrg ? document.team?.organisation?.name : document.team?.name}{' '}
+                      has invited you to view this document
                     </Trans>
                   ) : (
                     <Trans>has invited you to view this document</Trans>
@@ -203,7 +213,9 @@ export const DocumentSigningPageView = ({
                 .with(RecipientRole.SIGNER, () =>
                   includeSenderDetails ? (
                     <Trans>
-                      on behalf of "{document.team?.name}" has invited you to sign this document
+                      on behalf of{' '}
+                      {sendOnBehalfOfOrg ? document.team?.organisation?.name : document.team?.name}{' '}
+                      has invited you to sign this document
                     </Trans>
                   ) : (
                     <Trans>has invited you to sign this document</Trans>
@@ -212,7 +224,9 @@ export const DocumentSigningPageView = ({
                 .with(RecipientRole.APPROVER, () =>
                   includeSenderDetails ? (
                     <Trans>
-                      on behalf of "{document.team?.name}" has invited you to approve this document
+                      on behalf of{' '}
+                      {sendOnBehalfOfOrg ? document.team?.organisation?.name : document.team?.name}{' '}
+                      has invited you to approve this document
                     </Trans>
                   ) : (
                     <Trans>has invited you to approve this document</Trans>
@@ -221,7 +235,9 @@ export const DocumentSigningPageView = ({
                 .with(RecipientRole.ASSISTANT, () =>
                   includeSenderDetails ? (
                     <Trans>
-                      on behalf of "{document.team?.name}" has invited you to assist this document
+                      on behalf of{' '}
+                      {sendOnBehalfOfOrg ? document.team?.organisation?.name : document.team?.name}{' '}
+                      has invited you to assist this document
                     </Trans>
                   ) : (
                     <Trans>has invited you to assist this document</Trans>

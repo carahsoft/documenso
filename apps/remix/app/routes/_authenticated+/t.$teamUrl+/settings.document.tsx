@@ -98,6 +98,8 @@ export default function TeamsSettingsPage() {
         <DocumentPreferencesForm
           canInherit={true}
           settings={teamWithSettings.teamSettings}
+          organisationSettings={teamWithSettings.derivedSettings}
+          teamName={teamWithSettings.name}
           onFormSubmit={onDocumentPreferencesSubmit}
         />
       </section>
