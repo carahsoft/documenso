@@ -44,7 +44,7 @@ export const DocumentInviteEmailTemplate = ({
 
   if (organisationType === OrganisationType.ORGANISATION) {
     previewText = includeSenderDetails
-      ? msg`${inviterName} on behalf of "${teamName}" has invited you to ${action} ${documentName}`
+      ? msg`${inviterName} on behalf of ${teamName} has invited you to ${action} ${documentName}`
       : msg`${teamName} has invited you to ${action} ${documentName}`;
   }
 

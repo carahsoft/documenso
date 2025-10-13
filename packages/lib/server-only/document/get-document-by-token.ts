@@ -97,6 +97,18 @@ export const getDocumentAndSenderByToken = async ({
               brandingLogo: true,
             },
           },
+          organisation: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              organisationClaim: {
+                select: {
+                  flags: true,
+                },
+              },
+            },
+          },
         },
       },
     },

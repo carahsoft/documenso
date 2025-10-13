@@ -78,12 +78,16 @@ export type DocumentPreferencesFormProps = {
   settings: SettingsSubset;
   canInherit: boolean;
   onFormSubmit: (data: TDocumentPreferencesFormSchema) => Promise<void>;
+  organisationSettings?: SettingsSubset;
+  teamName?: string;
 };
 
 export const DocumentPreferencesForm = ({
   settings,
   onFormSubmit,
   canInherit,
+  organisationSettings,
+  teamName,
 }: DocumentPreferencesFormProps) => {
   const { t } = useLingui();
   const { user, organisations } = useSession();
@@ -92,7 +96,7 @@ export const DocumentPreferencesForm = ({
   const isPersonalLayoutMode = isPersonalLayout(organisations);
   const isPersonalOrganisation = currentOrganisation.type === OrganisationType.PERSONAL;
 
-  const placeholderEmail = user.email ?? 'user@example.com';
+  const placeholderName = user.name ?? 'First Last';
 
   // Check if the "Send on behalf of organisation" flag is enabled
   const sendOnBehalfOfOrg =
@@ -391,25 +395,35 @@ export const DocumentPreferencesForm = ({
                     </div>
 
                     <Alert variant="neutral" className="mt-1 px-2.5 py-1.5 text-sm">
-                      {field.value ? (
-                        sendOnBehalfOfOrg ? (
+                      {(() => {
+                        // When field.value is null (Inherit from organisation), use the organisationSettings value
+                        const effectiveValue =
+                          field.value === null
+                            ? organisationSettings?.includeSenderDetails
+                            : field.value;
+
+                        return effectiveValue ? (
+                          sendOnBehalfOfOrg ? (
+                            <Trans>
+                              "{placeholderName}" on behalf of "{currentOrganisation.name}" has
+                              invited you to sign "example document".
+                            </Trans>
+                          ) : (
+                            <Trans>
+                              "{placeholderName}" on behalf of "{teamName ?? 'Team Name'}" has
+                              invited you to sign "example document".
+                            </Trans>
+                          )
+                        ) : sendOnBehalfOfOrg ? (
                           <Trans>
-                            "{placeholderEmail}" on behalf of {currentOrganisation.name} has invited
-                            you to sign "example document".
+                            "{currentOrganisation.name}" has invited you to sign "example document".
                           </Trans>
                         ) : (
                           <Trans>
-                            "{placeholderEmail}" on behalf of "Team Name" has invited you to sign
-                            "example document".
+                            "{teamName ?? 'Team Name'}" has invited you to sign "example document".
                           </Trans>
-                        )
-                      ) : sendOnBehalfOfOrg ? (
-                        <Trans>
-                          {currentOrganisation.name} has invited you to sign "example document".
-                        </Trans>
-                      ) : (
-                        <Trans>"Team Name" has invited you to sign "example document".</Trans>
-                      )}
+                        );
+                      })()}
                     </Alert>
                   </div>
 
