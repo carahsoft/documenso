@@ -81,6 +81,7 @@ declare namespace NodeJS {
 
     NEXT_PUBLIC_DISABLE_SIGNUP?: string;
     NEXT_PUBLIC_ADMIN_CREATE_ORGANISATION?: string;
+    NEXT_PUBLIC_HIDE_SUPPORT_MENU?: string;
 
     NEXT_PRIVATE_BROWSERLESS_URL?: string;
 
