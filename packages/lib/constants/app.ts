@@ -17,6 +17,8 @@ export const ADMIN_CREATE_ORGANISATION_ENABLED = () =>
 export const IS_PERSONAL_ORGANISATION_DISABLED = () =>
   env('NEXT_PUBLIC_DISABLE_PERSONAL_ORGANISATION') === 'true';
 
+export const IS_SUPPORT_MENU_HIDDEN = () => env('NEXT_PUBLIC_HIDE_SUPPORT_MENU') === 'true';
+
 export const API_V2_BETA_URL = '/api/v2-beta';
 
 export const SUPPORT_EMAIL = env('NEXT_PUBLIC_SUPPORT_EMAIL') ?? 'support@documenso.com';
