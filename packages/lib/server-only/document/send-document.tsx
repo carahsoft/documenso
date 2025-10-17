@@ -196,6 +196,11 @@ export const sendDocument = async ({
       include: {
         documentMeta: true,
         recipients: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
   });

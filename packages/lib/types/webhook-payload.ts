@@ -62,6 +62,7 @@ export const ZWebhookDocumentSchema = z.object({
   id: z.number(),
   externalId: z.string().nullable(),
   userId: z.number(),
+  userEmail: z.string(),
   authOptions: z.any().nullable(),
   formValues: z.any().nullable(),
   visibility: z.nativeEnum(DocumentVisibility),
@@ -98,12 +99,14 @@ export const mapDocumentToWebhookDocumentPayload = (
   document: Document & {
     recipients: Recipient[];
     documentMeta: DocumentMeta | null;
+    user: { email: string };
   },
 ): TWebhookDocument => {
-  const { recipients, documentMeta, ...trimmedDocument } = document;
+  const { recipients, documentMeta, user, ...trimmedDocument } = document;
 
   return {
     ...trimmedDocument,
+    userEmail: user.email,
     documentMeta: documentMeta
       ? {
           ...documentMeta,

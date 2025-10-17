@@ -99,6 +99,11 @@ export const viewedDocument = async ({
     include: {
       documentMeta: true,
       recipients: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
     },
   });
 

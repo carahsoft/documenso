@@ -97,6 +97,11 @@ export const duplicateDocument = async ({
     include: {
       recipients: true,
       documentMeta: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
     },
   });
 
