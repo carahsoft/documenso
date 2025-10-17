@@ -60,6 +60,11 @@ export const resendDocument = async ({
         select: {
           teamEmail: true,
           name: true,
+          organisation: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
     },
@@ -99,7 +104,7 @@ export const resendDocument = async ({
     return;
   }
 
-  const { branding, emailLanguage, organisationType, senderEmail, replyToEmail } =
+  const { branding, emailLanguage, settings, organisationType, senderEmail, replyToEmail, claims } =
     await getEmailContext({
       emailType: 'RECIPIENT',
       source: {
@@ -137,14 +142,25 @@ export const resendDocument = async ({
       }
 
       if (organisationType === OrganisationType.ORGANISATION) {
+        // Use organisation name if the flag is enabled, otherwise use team name
+        const displayName = claims.flags.sendOnBehalfOfOrganisation
+          ? document.team?.organisation?.name || document.team.name
+          : document.team.name;
+
         emailSubject = i18n._(
-          msg`Reminder: ${document.team.name} invited you to ${recipientActionVerb} a document`,
+          msg`Reminder: ${displayName} invited you to ${recipientActionVerb} a document`,
         );
-        emailMessage =
-          customEmail?.message ||
-          i18n._(
-            msg`${user.name || user.email} on behalf of "${document.team.name}" has invited you to ${recipientActionVerb} the document "${document.title}".`,
+        emailMessage = customEmail?.message ?? '';
+
+        if (!emailMessage) {
+          const inviterName = user.name || '';
+
+          emailMessage = i18n._(
+            settings.includeSenderDetails
+              ? msg`${inviterName} on behalf of "${displayName}" has invited you to ${recipientActionVerb} the document "${document.title}".`
+              : msg`${displayName} has invited you to ${recipientActionVerb} the document "${document.title}".`,
           );
+        }
       }
 
       const customEmailTemplate = {
@@ -169,7 +185,11 @@ export const resendDocument = async ({
         role: recipient.role,
         selfSigner,
         organisationType,
-        teamName: document.team?.name,
+        teamName: claims.flags.sendOnBehalfOfOrganisation
+          ? document.team?.organisation?.name || document.team?.name
+          : document.team?.name,
+        teamEmail: document.team?.teamEmail?.email,
+        includeSenderDetails: settings.includeSenderDetails,
       });
 
       const [html, text] = await Promise.all([
