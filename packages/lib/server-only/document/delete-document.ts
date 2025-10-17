@@ -57,6 +57,11 @@ export const deleteDocument = async ({
     include: {
       recipients: true,
       documentMeta: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
     },
   });
 

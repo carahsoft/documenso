@@ -257,6 +257,11 @@ export const createDocumentV2 = async ({
         recipients: true,
         fields: true,
         folder: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
 

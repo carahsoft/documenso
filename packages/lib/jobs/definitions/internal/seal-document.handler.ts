@@ -306,6 +306,11 @@ export const run = async ({
       documentData: true,
       documentMeta: true,
       recipients: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
     },
   });
 

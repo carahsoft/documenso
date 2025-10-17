@@ -22,6 +22,7 @@ export const generateSampleWebhookPayload = (
     id: 10,
     externalId: null,
     userId: 1,
+    userEmail: 'owner@documenso.com',
     authOptions: null,
     formValues: null,
     visibility: DocumentVisibility.EVERYONE,
