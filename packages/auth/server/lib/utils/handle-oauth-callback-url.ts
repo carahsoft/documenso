@@ -223,7 +223,12 @@ export const validateOauth = async (options: HandleOAuthCallbackUrlOptions) => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const claims = decodeIdToken(tokens.idToken()) as Record<string, unknown>;
 
-  const email = claims.email;
+  // Prefer preferred_username (userPrincipalName for Entra) if it's a valid email
+  let email = claims.email;
+  if (typeof claims.preferred_username === 'string' && claims.preferred_username.includes('@')) {
+    email = claims.preferred_username;
+  }
+
   const name = claims.name;
   const sub = claims.sub;
 
