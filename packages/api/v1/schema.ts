@@ -137,72 +137,92 @@ export const ZApproveDownloadDocumentMutationSchema = null;
 
 export type TApproveDownloadDocumentMutationSchema = typeof ZApproveDownloadDocumentMutationSchema;
 
-export const ZCreateDocumentMutationSchema = z.object({
-  title: z.string().min(1),
-  externalId: z.string().nullish(),
-  folderId: z
-    .string()
-    .describe(
-      'The ID of the folder to create the document in. If not provided, the document will be created in the root folder.',
-    )
-    .optional(),
-  recipients: z.array(
-    z.object({
-      name: z.string().min(1),
-      email: z.string().email().min(1),
-      role: z.nativeEnum(RecipientRole).optional().default(RecipientRole.SIGNER),
-      signingOrder: z.number().nullish(),
-    }),
-  ),
-  meta: z
-    .object({
-      subject: z.string(),
-      message: z.string(),
-      timezone: z.string().default(DEFAULT_DOCUMENT_TIME_ZONE).openapi({
-        description:
-          'The timezone of the date. Must be one of the options listed in the list below.',
-        enum: TIME_ZONES,
+export const ZCreateDocumentMutationSchema = z
+  .object({
+    title: z.string().min(1),
+    externalId: z.string().nullish(),
+    userId: z
+      .number()
+      .int()
+      .positive()
+      .describe(
+        'The ID of the user who will own the document. If not provided, the authenticated user will be used. Cannot be used together with userEmail.',
+      )
+      .optional(),
+    userEmail: z
+      .string()
+      .email()
+      .describe(
+        'The email address of the user who will own the document. The system will lookup the userId. If not provided, the authenticated user will be used. Cannot be used together with userId.',
+      )
+      .optional(),
+    folderId: z
+      .string()
+      .describe(
+        'The ID of the folder to create the document in. If not provided, the document will be created in the root folder.',
+      )
+      .optional(),
+    recipients: z.array(
+      z.object({
+        name: z.string().min(1),
+        email: z.string().email().min(1),
+        role: z.nativeEnum(RecipientRole).optional().default(RecipientRole.SIGNER),
+        signingOrder: z.number().nullish(),
       }),
-      dateFormat: z
-        .string()
-        .default(DEFAULT_DOCUMENT_DATE_FORMAT)
-        .openapi({
+    ),
+    meta: z
+      .object({
+        subject: z.string(),
+        message: z.string(),
+        timezone: z.string().default(DEFAULT_DOCUMENT_TIME_ZONE).openapi({
           description:
-            'The format of the date. Must be one of the options listed in the list below.',
-          enum: DATE_FORMATS.map((format) => format.value),
+            'The timezone of the date. Must be one of the options listed in the list below.',
+          enum: TIME_ZONES,
         }),
-      redirectUrl: z.string(),
-      signingOrder: z.nativeEnum(DocumentSigningOrder).optional(),
-      allowDictateNextSigner: z.boolean().optional(),
-      language: z.enum(SUPPORTED_LANGUAGE_CODES).optional(),
-      typedSignatureEnabled: z.boolean().optional().default(true),
-      uploadSignatureEnabled: z.boolean().optional().default(true),
-      drawSignatureEnabled: z.boolean().optional().default(true),
-      distributionMethod: z.nativeEnum(DocumentDistributionMethod).optional(),
-      emailSettings: ZDocumentEmailSettingsSchema.optional(),
-    })
-    .partial()
-    .optional()
-    .default({}),
-  authOptions: z
-    .object({
-      globalAccessAuth: z
-        .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-      globalActionAuth: z
-        .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-    })
-    .optional()
-    .openapi({
-      description: 'The globalActionAuth property is only available for Enterprise accounts.',
-    }),
-  formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
-});
+        dateFormat: z
+          .string()
+          .default(DEFAULT_DOCUMENT_DATE_FORMAT)
+          .openapi({
+            description:
+              'The format of the date. Must be one of the options listed in the list below.',
+            enum: DATE_FORMATS.map((format) => format.value),
+          }),
+        redirectUrl: z.string(),
+        signingOrder: z.nativeEnum(DocumentSigningOrder).optional(),
+        allowDictateNextSigner: z.boolean().optional(),
+        language: z.enum(SUPPORTED_LANGUAGE_CODES).optional(),
+        typedSignatureEnabled: z.boolean().optional().default(true),
+        uploadSignatureEnabled: z.boolean().optional().default(true),
+        drawSignatureEnabled: z.boolean().optional().default(true),
+        distributionMethod: z.nativeEnum(DocumentDistributionMethod).optional(),
+        emailSettings: ZDocumentEmailSettingsSchema.optional(),
+      })
+      .partial()
+      .optional()
+      .default({}),
+    authOptions: z
+      .object({
+        globalAccessAuth: z
+          .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+        globalActionAuth: z
+          .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+      })
+      .optional()
+      .openapi({
+        description: 'The globalActionAuth property is only available for Enterprise accounts.',
+      }),
+    formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
+  })
+  .refine((data) => !(data.userId && data.userEmail), {
+    message: 'Cannot provide both userId and userEmail. Please use only one.',
+    path: ['userId', 'userEmail'],
+  });
 
 export type TCreateDocumentMutationSchema = z.infer<typeof ZCreateDocumentMutationSchema>;
 
@@ -228,46 +248,66 @@ export type TCreateDocumentMutationResponseSchema = z.infer<
   typeof ZCreateDocumentMutationResponseSchema
 >;
 
-export const ZCreateDocumentFromTemplateMutationSchema = z.object({
-  title: z.string().min(1),
-  externalId: z.string().nullish(),
-  recipients: z.array(
-    z.object({
-      name: z.string().min(1),
-      email: z.string().email().min(1),
-      role: z.nativeEnum(RecipientRole).optional().default(RecipientRole.SIGNER),
-      signingOrder: z.number().nullish(),
-    }),
-  ),
-  meta: z
-    .object({
-      subject: z.string(),
-      message: z.string(),
-      timezone: z.string(),
-      dateFormat: z.string(),
-      redirectUrl: z.string(),
-      signingOrder: z.nativeEnum(DocumentSigningOrder).optional(),
-      allowDictateNextSigner: z.boolean().optional(),
-      language: z.enum(SUPPORTED_LANGUAGE_CODES).optional(),
-    })
-    .partial()
-    .optional(),
-  authOptions: z
-    .object({
-      globalAccessAuth: z
-        .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-      globalActionAuth: z
-        .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-    })
-    .optional(),
-  formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
-});
+export const ZCreateDocumentFromTemplateMutationSchema = z
+  .object({
+    title: z.string().min(1),
+    externalId: z.string().nullish(),
+    userId: z
+      .number()
+      .int()
+      .positive()
+      .describe(
+        'The ID of the user who will own the document. If not provided, the authenticated user will be used. Cannot be used together with userEmail.',
+      )
+      .optional(),
+    userEmail: z
+      .string()
+      .email()
+      .describe(
+        'The email address of the user who will own the document. The system will lookup the userId. If not provided, the authenticated user will be used. Cannot be used together with userId.',
+      )
+      .optional(),
+    recipients: z.array(
+      z.object({
+        name: z.string().min(1),
+        email: z.string().email().min(1),
+        role: z.nativeEnum(RecipientRole).optional().default(RecipientRole.SIGNER),
+        signingOrder: z.number().nullish(),
+      }),
+    ),
+    meta: z
+      .object({
+        subject: z.string(),
+        message: z.string(),
+        timezone: z.string(),
+        dateFormat: z.string(),
+        redirectUrl: z.string(),
+        signingOrder: z.nativeEnum(DocumentSigningOrder).optional(),
+        allowDictateNextSigner: z.boolean().optional(),
+        language: z.enum(SUPPORTED_LANGUAGE_CODES).optional(),
+      })
+      .partial()
+      .optional(),
+    authOptions: z
+      .object({
+        globalAccessAuth: z
+          .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+        globalActionAuth: z
+          .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+      })
+      .optional(),
+    formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
+  })
+  .refine((data) => !(data.userId && data.userEmail), {
+    message: 'Cannot provide both userId and userEmail. Please use only one.',
+    path: ['userId', 'userEmail'],
+  });
 
 export type TCreateDocumentFromTemplateMutationSchema = z.infer<
   typeof ZCreateDocumentFromTemplateMutationSchema
@@ -294,67 +334,87 @@ export type TCreateDocumentFromTemplateMutationResponseSchema = z.infer<
   typeof ZCreateDocumentFromTemplateMutationResponseSchema
 >;
 
-export const ZGenerateDocumentFromTemplateMutationSchema = z.object({
-  title: z.string().optional(),
-  externalId: z.string().optional(),
-  folderId: z
-    .string()
-    .describe(
-      'The ID of the folder to create the document in. If not provided, the document will be created in the root folder.',
-    )
-    .optional(),
-  recipients: z
-    .array(
-      z.object({
-        id: z.number(),
-        email: z.string().email(),
-        name: z.string().optional(),
-        signingOrder: z.number().optional(),
-      }),
-    )
-    .refine(
-      (schema) => {
-        const ids = schema.map((signer) => signer.id);
+export const ZGenerateDocumentFromTemplateMutationSchema = z
+  .object({
+    title: z.string().optional(),
+    externalId: z.string().optional(),
+    userId: z
+      .number()
+      .int()
+      .positive()
+      .describe(
+        'The ID of the user who will own the document. If not provided, the authenticated user will be used. Cannot be used together with userEmail.',
+      )
+      .optional(),
+    userEmail: z
+      .string()
+      .email()
+      .describe(
+        'The email address of the user who will own the document. The system will lookup the userId. If not provided, the authenticated user will be used. Cannot be used together with userId.',
+      )
+      .optional(),
+    folderId: z
+      .string()
+      .describe(
+        'The ID of the folder to create the document in. If not provided, the document will be created in the root folder.',
+      )
+      .optional(),
+    recipients: z
+      .array(
+        z.object({
+          id: z.number(),
+          email: z.string().email(),
+          name: z.string().optional(),
+          signingOrder: z.number().optional(),
+        }),
+      )
+      .refine(
+        (schema) => {
+          const ids = schema.map((signer) => signer.id);
 
-        return new Set(ids).size === ids.length;
-      },
-      { message: 'Recipient IDs must be unique' },
-    ),
-  meta: z
-    .object({
-      subject: z.string(),
-      message: z.string(),
-      timezone: z.string(),
-      dateFormat: z.string(),
-      redirectUrl: ZUrlSchema,
-      signingOrder: z.nativeEnum(DocumentSigningOrder),
-      allowDictateNextSigner: z.boolean(),
-      language: z.enum(SUPPORTED_LANGUAGE_CODES),
-      distributionMethod: z.nativeEnum(DocumentDistributionMethod),
-      typedSignatureEnabled: z.boolean(),
-      uploadSignatureEnabled: z.boolean(),
-      drawSignatureEnabled: z.boolean(),
-      emailSettings: ZDocumentEmailSettingsSchema,
-    })
-    .partial()
-    .optional(),
-  authOptions: z
-    .object({
-      globalAccessAuth: z
-        .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-      globalActionAuth: z
-        .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
-        .transform((val) => (Array.isArray(val) ? val : [val]))
-        .optional()
-        .default([]),
-    })
-    .optional(),
-  formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
-  prefillFields: z.array(ZFieldMetaPrefillFieldsSchema).optional(),
-});
+          return new Set(ids).size === ids.length;
+        },
+        { message: 'Recipient IDs must be unique' },
+      ),
+    meta: z
+      .object({
+        subject: z.string(),
+        message: z.string(),
+        timezone: z.string(),
+        dateFormat: z.string(),
+        redirectUrl: ZUrlSchema,
+        signingOrder: z.nativeEnum(DocumentSigningOrder),
+        allowDictateNextSigner: z.boolean(),
+        language: z.enum(SUPPORTED_LANGUAGE_CODES),
+        distributionMethod: z.nativeEnum(DocumentDistributionMethod),
+        typedSignatureEnabled: z.boolean(),
+        uploadSignatureEnabled: z.boolean(),
+        drawSignatureEnabled: z.boolean(),
+        emailSettings: ZDocumentEmailSettingsSchema,
+      })
+      .partial()
+      .optional(),
+    authOptions: z
+      .object({
+        globalAccessAuth: z
+          .union([ZDocumentAccessAuthTypesSchema, z.array(ZDocumentAccessAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+        globalActionAuth: z
+          .union([ZDocumentActionAuthTypesSchema, z.array(ZDocumentActionAuthTypesSchema)])
+          .transform((val) => (Array.isArray(val) ? val : [val]))
+          .optional()
+          .default([]),
+      })
+      .optional(),
+    formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
+    prefillFields: z.array(ZFieldMetaPrefillFieldsSchema).optional(),
+  })
+  .refine((data) => !(data.userId && data.userEmail), {
+    message: 'Cannot provide both userId and userEmail. Please use only one.',
+    path: ['userId', 'userEmail'],
+  });
 
 export type TGenerateDocumentFromTemplateMutationSchema = z.infer<
   typeof ZGenerateDocumentFromTemplateMutationSchema

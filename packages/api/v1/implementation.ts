@@ -392,6 +392,48 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         };
       }
 
+      let documentOwnerId = user.id;
+
+      if (body.userId) {
+        documentOwnerId = body.userId;
+
+        if (body.userId !== user.id) {
+          const targetUser = await prisma.user.findUnique({
+            where: { id: body.userId },
+          });
+
+          if (!targetUser) {
+            return {
+              status: 400,
+              body: {
+                message: 'The specified userId does not exist',
+              },
+            };
+          }
+        }
+      } else if (body.userEmail) {
+        const targetUser = await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: body.userEmail,
+              mode: 'insensitive',
+            },
+          },
+        });
+
+        if (!targetUser) {
+          return {
+            status: 400,
+            body: {
+              message: 'The specified userEmail does not exist',
+            },
+          };
+        }
+
+        documentOwnerId = targetUser.id;
+      }
+
+      // Use authenticated user for limits
       const { remaining } = await getServerLimits({ userId: user.id, teamId: team.id });
 
       if (remaining.documents <= 0) {
@@ -443,7 +485,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       const document = await createDocument({
         title: body.title,
         externalId: body.externalId || null,
-        userId: user.id,
+        userId: documentOwnerId,
         teamId: team?.id,
         formValues: body.formValues,
         folderId: body.folderId,
@@ -453,7 +495,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
 
       await upsertDocumentMeta({
         documentId: document.id,
-        userId: user.id,
+        userId: documentOwnerId,
         teamId: team?.id,
         subject: body.meta.subject,
         message: body.meta.message,
@@ -474,7 +516,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       if (body.authOptions) {
         await updateDocumentSettings({
           documentId: document.id,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           data: {
             ...body.authOptions,
@@ -484,7 +526,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       }
 
       const { recipients } = await setDocumentRecipients({
-        userId: user.id,
+        userId: documentOwnerId,
         teamId: team?.id,
         documentId: document.id,
         recipients: body.recipients,
@@ -724,6 +766,48 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       });
 
+      let documentOwnerId = user.id;
+
+      if (body.userId) {
+        documentOwnerId = body.userId;
+
+        if (body.userId !== user.id) {
+          const targetUser = await prisma.user.findUnique({
+            where: { id: body.userId },
+          });
+
+          if (!targetUser) {
+            return {
+              status: 400,
+              body: {
+                message: 'The specified userId does not exist',
+              },
+            };
+          }
+        }
+      } else if (body.userEmail) {
+        const targetUser = await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: body.userEmail,
+              mode: 'insensitive',
+            },
+          },
+        });
+
+        if (!targetUser) {
+          return {
+            status: 400,
+            body: {
+              message: 'The specified userEmail does not exist',
+            },
+          };
+        }
+
+        documentOwnerId = targetUser.id;
+      }
+
+      // Use authenticated user for limits
       const { remaining } = await getServerLimits({ userId: user.id, teamId: team?.id });
 
       if (remaining.documents <= 0) {
@@ -741,7 +825,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
 
       const document = await createDocumentFromTemplateLegacy({
         templateId,
-        userId: user.id,
+        userId: documentOwnerId,
         teamId: team?.id,
         recipients: body.recipients,
       });
@@ -767,7 +851,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
 
       await updateDocument({
         documentId: document.id,
-        userId: user.id,
+        userId: documentOwnerId,
         teamId: team?.id,
         data: {
           title: fileName,
@@ -784,7 +868,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       if (body.meta) {
         await upsertDocumentMeta({
           documentId: document.id,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           ...body.meta,
           requestMetadata: metadata,
@@ -794,7 +878,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       if (body.authOptions) {
         await updateDocumentSettings({
           documentId: document.id,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           data: body.authOptions,
           requestMetadata: metadata,
@@ -830,6 +914,48 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       });
 
+      let documentOwnerId = user.id;
+
+      if (body.userId) {
+        documentOwnerId = body.userId;
+
+        if (body.userId !== user.id) {
+          const targetUser = await prisma.user.findUnique({
+            where: { id: body.userId },
+          });
+
+          if (!targetUser) {
+            return {
+              status: 400,
+              body: {
+                message: 'The specified userId does not exist',
+              },
+            };
+          }
+        }
+      } else if (body.userEmail) {
+        const targetUser = await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: body.userEmail,
+              mode: 'insensitive',
+            },
+          },
+        });
+
+        if (!targetUser) {
+          return {
+            status: 400,
+            body: {
+              message: 'The specified userEmail does not exist',
+            },
+          };
+        }
+
+        documentOwnerId = targetUser.id;
+      }
+
+      // Use authenticated user for limits
       const { remaining } = await getServerLimits({ userId: user.id, teamId: team?.id });
 
       if (remaining.documents <= 0) {
@@ -849,7 +975,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         document = await createDocumentFromTemplate({
           templateId,
           externalId: body.externalId || null,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           recipients: body.recipients,
           prefillFields: body.prefillFields,
@@ -882,7 +1008,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
 
         await updateDocument({
           documentId: document.id,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           data: {
             formValues: body.formValues,
@@ -898,7 +1024,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       if (body.authOptions) {
         await updateDocumentSettings({
           documentId: document.id,
-          userId: user.id,
+          userId: documentOwnerId,
           teamId: team?.id,
           data: body.authOptions,
           requestMetadata: metadata,
