@@ -38,12 +38,6 @@ export const resendDocument = async ({
   teamId,
   requestMetadata,
 }: ResendDocumentOptions): Promise<void> => {
-  const user = await prisma.user.findFirstOrThrow({
-    where: {
-      id: userId,
-    },
-  });
-
   const { documentWhereInput } = await getDocumentWhereInput({
     documentId,
     userId,
@@ -55,6 +49,13 @@ export const resendDocument = async ({
     include: {
       recipients: true,
       documentMeta: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      },
       team: {
         select: {
           teamEmail: true,
@@ -64,11 +65,14 @@ export const resendDocument = async ({
     },
   });
 
-  const customEmail = document?.documentMeta;
-
   if (!document) {
     throw new Error('Document not found');
   }
+
+  // Use the document owner (not the authenticated user who is resending it)
+  const user = document.user;
+
+  const customEmail = document.documentMeta;
 
   if (document.recipients.length === 0) {
     throw new Error('Document has no recipients');

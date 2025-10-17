@@ -37,17 +37,7 @@ export const run = async ({
 }) => {
   const { userId, documentId, recipientId, requestMetadata } = payload;
 
-  const [user, document, recipient] = await Promise.all([
-    prisma.user.findFirstOrThrow({
-      where: {
-        id: userId,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
-    }),
+  const [document, recipient] = await Promise.all([
     prisma.document.findFirstOrThrow({
       where: {
         id: documentId,
@@ -55,6 +45,13 @@ export const run = async ({
       },
       include: {
         documentMeta: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
         team: {
           select: {
             teamEmail: true,
@@ -74,6 +71,9 @@ export const run = async ({
       },
     }),
   ]);
+
+  // Use the document owner (not the authenticated user who sent it)
+  const user = document.user;
 
   const { documentMeta, team } = document;
 
