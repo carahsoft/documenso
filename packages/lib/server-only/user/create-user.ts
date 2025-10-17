@@ -62,6 +62,48 @@ export const createUser = async ({ name, email, password, signature }: CreateUse
 };
 
 /**
+ * Create a user via SCIM provisioning.
+ * SCIM users are created without a password since they authenticate via the identity provider.
+ */
+export interface CreateSCIMUserOptions {
+  name: string;
+  email: string;
+  signature?: string | null;
+}
+
+export const createSCIMUser = async ({ name, email, signature }: CreateSCIMUserOptions) => {
+  const userExists = await prisma.user.findFirst({
+    where: {
+      email: email.toLowerCase(),
+    },
+  });
+
+  if (userExists) {
+    throw new AppError(AppErrorCode.ALREADY_EXISTS);
+  }
+
+  const user = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        password: null,
+        signature,
+        source: 'SCIM',
+      },
+    });
+
+    return user;
+  });
+
+  await onCreateUserHook(user).catch((err) => {
+    console.error(err);
+  });
+
+  return user;
+};
+
+/**
  * Should be run after a user is created, example during email password signup or google sign in.
  *
  * @returns User

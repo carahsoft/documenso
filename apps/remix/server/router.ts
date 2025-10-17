@@ -6,6 +6,7 @@ import type { RequestIdVariables } from 'hono/request-id';
 import type { Logger } from 'pino';
 
 import { tsRestHonoApp } from '@documenso/api/hono';
+import { scimRouter } from '@documenso/api/scim/router';
 import { auth } from '@documenso/auth/server';
 import { API_V2_BETA_URL } from '@documenso/lib/constants/app';
 import { jobsClient } from '@documenso/lib/jobs/client';
@@ -81,6 +82,9 @@ app.route('/api/auth', auth);
 
 // Files route.
 app.route('/api/files', filesRoute);
+
+// SCIM 2.0 server.
+app.route('/api/scim/v2', scimRouter);
 
 // API servers.
 app.route('/api/v1', tsRestHonoApp);
