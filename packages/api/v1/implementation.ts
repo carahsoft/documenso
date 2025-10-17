@@ -140,6 +140,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error getting document',
+      );
+
       return {
         status: 404,
         body: {
@@ -213,6 +218,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           body: { downloadUrl: url },
         };
       } catch (err) {
+        logger.error(
+          { error: err, message: err instanceof AppError ? err.message : undefined },
+          'Error downloading document',
+        );
+
         return {
           status: 500,
           body: {
@@ -329,6 +339,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           body: { downloadUrl: url },
         };
       } catch (err) {
+        logger.error(
+          { error: err, message: err instanceof AppError ? err.message : undefined },
+          'Error approving/downloading document',
+        );
+
         return {
           status: 500,
           body: {
@@ -378,6 +393,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           body: deletedDocument,
         };
       } catch (err) {
+        logger.error(
+          { error: err, message: err instanceof AppError ? err.message : undefined },
+          'Error deleting document',
+        );
+
         return {
           status: 404,
           body: {
@@ -388,7 +408,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
     },
   ),
 
-  createDocument: authenticatedMiddleware(async (args, user, team, { metadata }) => {
+  createDocument: authenticatedMiddleware(async (args, user, team, { metadata, logger }) => {
     const { body } = args;
 
     try {
@@ -560,6 +580,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error creating document',
+      );
+
       return {
         status: 404,
         body: {
@@ -569,7 +594,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
     }
   }),
 
-  createTemplate: authenticatedMiddleware(async (args, user, team) => {
+  createTemplate: authenticatedMiddleware(async (args, user, team, { logger }) => {
     const { body } = args;
     const {
       title,
@@ -663,6 +688,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error creating template',
+      );
+
       return {
         status: 404,
         body: {
@@ -693,6 +723,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         body: deletedTemplate,
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error deleting template',
+      );
+
       return {
         status: 404,
         body: {
@@ -730,11 +765,16 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error getting template',
+      );
+
       return AppError.toRestAPIError(err);
     }
   }),
 
-  getTemplates: authenticatedMiddleware(async (args, user, team) => {
+  getTemplates: authenticatedMiddleware(async (args, user, team, { logger }) => {
     const page = Number(args.query.page) || 1;
     const perPage = Number(args.query.perPage) || 10;
 
@@ -761,6 +801,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error getting templates',
+      );
+
       return AppError.toRestAPIError(err);
     }
   }),
@@ -996,6 +1041,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           requestMetadata: metadata,
         });
       } catch (err) {
+        logger.error(
+          { error: err, message: err instanceof AppError ? err.message : undefined },
+          'Error creating document from template',
+        );
+
         return AppError.toRestAPIError(err);
       }
 
@@ -1130,6 +1180,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error sending document',
+      );
+
       return {
         status: 500,
         body: {
@@ -1165,6 +1220,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error resending document',
+      );
+
       return {
         status: 500,
         body: {
@@ -1264,6 +1324,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error creating recipient',
+      );
+
       return {
         status: 500,
         body: {
@@ -1571,6 +1636,11 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         },
       };
     } catch (err) {
+      logger.error(
+        { error: err, message: err instanceof AppError ? err.message : undefined },
+        'Error creating field',
+      );
+
       return AppError.toRestAPIError(err);
     }
   }),
