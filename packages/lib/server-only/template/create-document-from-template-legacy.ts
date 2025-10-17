@@ -10,6 +10,7 @@ import { getTeamSettings } from '../team/get-team-settings';
 export type CreateDocumentFromTemplateLegacyOptions = {
   templateId: number;
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   recipients?: {
     name?: string;
@@ -27,13 +28,17 @@ export type CreateDocumentFromTemplateLegacyOptions = {
 export const createDocumentFromTemplateLegacy = async ({
   templateId,
   userId,
+  authenticatedUserId,
   teamId,
   recipients,
 }: CreateDocumentFromTemplateLegacyOptions) => {
+  // Use authenticatedUserId for team operations if provided, otherwise fall back to userId
+  const userIdForTeamOperations = authenticatedUserId ?? userId;
+
   const template = await prisma.template.findUnique({
     where: {
       id: templateId,
-      team: buildTeamWhereQuery({ teamId, userId }),
+      team: buildTeamWhereQuery({ teamId, userId: userIdForTeamOperations }),
     },
     include: {
       recipients: true,
@@ -48,7 +53,7 @@ export const createDocumentFromTemplateLegacy = async ({
   }
 
   const settings = await getTeamSettings({
-    userId,
+    userId: userIdForTeamOperations,
     teamId,
   });
 

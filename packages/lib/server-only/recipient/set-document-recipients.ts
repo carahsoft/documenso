@@ -34,6 +34,7 @@ import { getEmailContext } from '../email/get-email-context';
 
 export interface SetDocumentRecipientsOptions {
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   documentId: number;
   recipients: RecipientData[];
@@ -42,6 +43,7 @@ export interface SetDocumentRecipientsOptions {
 
 export const setDocumentRecipients = async ({
   userId,
+  authenticatedUserId,
   teamId,
   documentId,
   recipients,
@@ -50,6 +52,7 @@ export const setDocumentRecipients = async ({
   const { documentWhereInput } = await getDocumentWhereInput({
     documentId,
     userId,
+    authenticatedUserId,
     teamId,
   });
 

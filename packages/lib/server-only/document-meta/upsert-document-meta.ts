@@ -15,6 +15,7 @@ import { getDocumentWhereInput } from '../document/get-document-by-id';
 
 export type CreateDocumentMetaOptions = {
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   documentId: number;
   subject?: string;
@@ -38,6 +39,7 @@ export type CreateDocumentMetaOptions = {
 
 export const upsertDocumentMeta = async ({
   userId,
+  authenticatedUserId,
   teamId,
   subject,
   message,
@@ -61,6 +63,7 @@ export const upsertDocumentMeta = async ({
   const { documentWhereInput, team } = await getDocumentWhereInput({
     documentId,
     userId,
+    authenticatedUserId,
     teamId,
   });
 

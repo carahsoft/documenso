@@ -63,6 +63,7 @@ export type CreateDocumentFromTemplateOptions = {
   templateId: number;
   externalId?: string | null;
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   recipients: {
     id: number;
@@ -271,6 +272,7 @@ export const createDocumentFromTemplate = async ({
   templateId,
   externalId,
   userId,
+  authenticatedUserId,
   teamId,
   recipients,
   customDocumentDataId,
@@ -279,10 +281,13 @@ export const createDocumentFromTemplate = async ({
   folderId,
   prefillFields,
 }: CreateDocumentFromTemplateOptions) => {
+  // Use authenticatedUserId for team operations if provided, otherwise fall back to userId
+  const userIdForTeamOperations = authenticatedUserId ?? userId;
+
   const template = await prisma.template.findUnique({
     where: {
       id: templateId,
-      team: buildTeamWhereQuery({ teamId, userId }),
+      team: buildTeamWhereQuery({ teamId, userId: userIdForTeamOperations }),
     },
     include: {
       recipients: {
@@ -306,7 +311,7 @@ export const createDocumentFromTemplate = async ({
       where: {
         id: folderId,
         type: FolderType.DOCUMENT,
-        team: buildTeamWhereQuery({ teamId, userId }),
+        team: buildTeamWhereQuery({ teamId, userId: userIdForTeamOperations }),
       },
     });
 
@@ -318,7 +323,7 @@ export const createDocumentFromTemplate = async ({
   }
 
   const settings = await getTeamSettings({
-    userId,
+    userId: userIdForTeamOperations,
     teamId,
   });
 

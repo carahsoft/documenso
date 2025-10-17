@@ -71,6 +71,7 @@ export const getDocumentById = async ({
 export type GetDocumentWhereInputOptions = {
   documentId: number;
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   organisationId?: string;
 };
@@ -84,10 +85,14 @@ export type GetDocumentWhereInputOptions = {
 export const getDocumentWhereInput = async ({
   documentId,
   userId,
+  authenticatedUserId,
   teamId,
   organisationId,
 }: GetDocumentWhereInputOptions) => {
-  const team = await getTeamById({ teamId, userId });
+  // Use authenticatedUserId for team operations if provided, otherwise fall back to userId
+  const userIdForTeamOperations = authenticatedUserId ?? userId;
+
+  const team = await getTeamById({ teamId, userId: userIdForTeamOperations });
 
   const user = await prisma.user.findFirstOrThrow({
     where: {
