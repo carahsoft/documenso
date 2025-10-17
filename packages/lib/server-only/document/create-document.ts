@@ -26,6 +26,7 @@ export type CreateDocumentOptions = {
   title: string;
   externalId?: string | null;
   userId: number;
+  authenticatedUserId?: number;
   teamId: number;
   documentDataId: string;
   formValues?: Record<string, string | number | boolean>;
@@ -38,6 +39,7 @@ export type CreateDocumentOptions = {
 
 export const createDocument = async ({
   userId,
+  authenticatedUserId,
   title,
   externalId,
   documentDataId,
@@ -49,10 +51,13 @@ export const createDocument = async ({
   userTimezone,
   folderId,
 }: CreateDocumentOptions) => {
-  const team = await getTeamById({ userId, teamId });
+  // Use authenticatedUserId for team operations if provided, otherwise fall back to userId
+  const userIdForTeamOperations = authenticatedUserId ?? userId;
+
+  const team = await getTeamById({ userId: userIdForTeamOperations, teamId });
 
   const settings = await getTeamSettings({
-    userId,
+    userId: userIdForTeamOperations,
     teamId,
   });
 
@@ -64,7 +69,7 @@ export const createDocument = async ({
         id: folderId,
         team: buildTeamWhereQuery({
           teamId,
-          userId,
+          userId: userIdForTeamOperations,
         }),
       },
       select: {

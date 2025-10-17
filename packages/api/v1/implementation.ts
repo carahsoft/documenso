@@ -486,6 +486,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         title: body.title,
         externalId: body.externalId || null,
         userId: documentOwnerId,
+        authenticatedUserId: user.id,
         teamId: team?.id,
         formValues: body.formValues,
         folderId: body.folderId,
@@ -496,6 +497,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       await upsertDocumentMeta({
         documentId: document.id,
         userId: documentOwnerId,
+        authenticatedUserId: user.id,
         teamId: team?.id,
         subject: body.meta.subject,
         message: body.meta.message,
@@ -527,6 +529,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
 
       const { recipients } = await setDocumentRecipients({
         userId: documentOwnerId,
+        authenticatedUserId: user.id,
         teamId: team?.id,
         documentId: document.id,
         recipients: body.recipients,
@@ -826,6 +829,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
       const document = await createDocumentFromTemplateLegacy({
         templateId,
         userId: documentOwnerId,
+        authenticatedUserId: user.id,
         teamId: team?.id,
         recipients: body.recipients,
       });
@@ -869,6 +873,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
         await upsertDocumentMeta({
           documentId: document.id,
           userId: documentOwnerId,
+          authenticatedUserId: user.id,
           teamId: team?.id,
           ...body.meta,
           requestMetadata: metadata,
@@ -976,6 +981,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           templateId,
           externalId: body.externalId || null,
           userId: documentOwnerId,
+          authenticatedUserId: user.id,
           teamId: team?.id,
           recipients: body.recipients,
           prefillFields: body.prefillFields,
