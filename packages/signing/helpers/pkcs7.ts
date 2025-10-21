@@ -125,6 +125,7 @@ export function buildAuthenticatedAttributes(pdfHash: Buffer): Buffer {
  * @param pdfHash - The hash of the PDF content (SHA-256)
  * @param timestampToken - Optional timestamp token from TSA (RFC 3161)
  * @param moduleName - Module name for logging (default: 'pkcs7')
+ * @param certificateChain - Optional array of intermediate/root CA certificates for LTV
  * @returns The complete PKCS#7 signature structure as a Buffer
  */
 export function buildPKCS7Signature(
@@ -133,6 +134,7 @@ export function buildPKCS7Signature(
   pdfHash: Buffer,
   timestampToken?: Buffer,
   moduleName = 'pkcs7',
+  certificateChain?: Buffer[],
 ): Buffer {
   try {
     const cert = parseCertificate(certificate);
@@ -272,6 +274,30 @@ export function buildPKCS7Signature(
     // Get certificate as ASN.1
     const certAsn1 = forge.pki.certificateToAsn1(cert);
 
+    // Build certificate chain array starting with signing certificate
+    const certChainAsn1 = [certAsn1];
+
+    // Add intermediate and root certificates if provided (for LTV support)
+    if (certificateChain && certificateChain.length > 0) {
+      logger.info(
+        { module: moduleName, chainLength: certificateChain.length },
+        'Adding certificate chain for LTV support',
+      );
+
+      for (const chainCert of certificateChain) {
+        try {
+          const chainCertParsed = parseCertificate(chainCert);
+          const chainCertAsn1 = forge.pki.certificateToAsn1(chainCertParsed);
+          certChainAsn1.push(chainCertAsn1);
+        } catch (error) {
+          logger.warn(
+            { module: moduleName, error },
+            'Failed to parse certificate in chain, skipping',
+          );
+        }
+      }
+    }
+
     // Build SignedData structure elements
     const signedDataElements = [
       // version (1)
@@ -302,8 +328,8 @@ export function buildPKCS7Signature(
           forge.asn1.oidToDer(forge.pki.oids.data).getBytes(),
         ),
       ]),
-      // certificates [0] IMPLICIT
-      forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [certAsn1]),
+      // certificates [0] IMPLICIT - includes full chain for LTV
+      forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, certChainAsn1),
     ];
 
     // Add signerInfos

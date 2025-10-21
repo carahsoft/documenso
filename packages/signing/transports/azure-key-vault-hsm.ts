@@ -159,6 +159,72 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 
   logger.info({ module: 'azure-key-vault-hsm' }, 'Certificate loaded successfully');
 
+  // Load certificate chain for LTV support (optional)
+  const certificateChain: Buffer[] = [];
+  const azureCertificateChainPath = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_CHAIN_PATH');
+  const azureCertificateChainContents = env(
+    'NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_CHAIN_CONTENTS',
+  );
+
+  try {
+    if (azureCertificateChainContents) {
+      // Certificate chain provided as base64-encoded contents (comma-separated)
+      logger.info(
+        { module: 'azure-key-vault-hsm' },
+        'Loading certificate chain from environment variable',
+      );
+      const chainCertsBase64 = azureCertificateChainContents.split(',');
+      for (const certBase64 of chainCertsBase64) {
+        const trimmed = certBase64.trim();
+        if (trimmed) {
+          certificateChain.push(Buffer.from(trimmed, 'base64'));
+        }
+      }
+      logger.info(
+        { module: 'azure-key-vault-hsm', count: certificateChain.length },
+        'Certificate chain loaded from environment',
+      );
+    } else if (azureCertificateChainPath && fs.existsSync(azureCertificateChainPath)) {
+      // Load certificate chain from file
+      logger.info(
+        { module: 'azure-key-vault-hsm', path: azureCertificateChainPath },
+        'Loading certificate chain from file',
+      );
+      const chainContents = fs.readFileSync(azureCertificateChainPath, 'utf8');
+
+      // Support both PEM bundle and comma-separated base64
+      if (chainContents.includes('-----BEGIN CERTIFICATE-----')) {
+        // PEM bundle format - split by certificate boundaries
+        const certRegex = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+        const matches = chainContents.match(certRegex);
+        if (matches) {
+          for (const pemCert of matches) {
+            certificateChain.push(Buffer.from(pemCert, 'utf8'));
+          }
+        }
+      } else {
+        // Assume comma-separated base64
+        const chainCertsBase64 = chainContents.split(',');
+        for (const certBase64 of chainCertsBase64) {
+          const trimmed = certBase64.trim();
+          if (trimmed) {
+            certificateChain.push(Buffer.from(trimmed, 'base64'));
+          }
+        }
+      }
+
+      logger.info(
+        { module: 'azure-key-vault-hsm', count: certificateChain.length },
+        'Certificate chain loaded from file',
+      );
+    }
+  } catch (error) {
+    logger.warn(
+      { module: 'azure-key-vault-hsm', error },
+      'Failed to load certificate chain, continuing without LTV support',
+    );
+  }
+
   // Create cryptography client for signing
   logger.info({ module: 'azure-key-vault-hsm', keyName }, 'Creating cryptography client');
 
@@ -230,7 +296,11 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 
   // Build the signature in PKCS#7 format
   logger.info(
-    { module: 'azure-key-vault-hsm', withTimestamp: !!timestampToken },
+    {
+      module: 'azure-key-vault-hsm',
+      withTimestamp: !!timestampToken,
+      withCertChain: certificateChain.length > 0,
+    },
     'Building PKCS#7 signature',
   );
 
@@ -243,6 +313,7 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
       pdfHash,
       timestampToken,
       'azure-key-vault-hsm',
+      certificateChain.length > 0 ? certificateChain : undefined,
     );
   } catch (error) {
     logger.error({ module: 'azure-key-vault-hsm', error }, 'Failed to build PKCS#7 signature');
