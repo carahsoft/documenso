@@ -38,6 +38,7 @@ declare namespace NodeJS {
     NEXT_PRIVATE_UPLOAD_DISTRIBUTION_KEY_CONTENTS?: string;
 
     NEXT_PRIVATE_SIGNING_TRANSPORT?: 'local' | 'http' | 'gcloud-hsm' | 'azure-hsm';
+    NEXT_PRIVATE_SIGNING_DISABLE_LTV?: string;
     NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL?: '0' | '1' | '2' | '3';
     NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL?: string;
     NEXT_PRIVATE_SIGNING_PASSPHRASE?: string;

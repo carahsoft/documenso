@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { env } from '@documenso/lib/utils/env';
 import { logger } from '@documenso/lib/utils/logger';
 
+import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
 import { buildAuthenticatedAttributes, buildPKCS7Signature } from '../helpers/pkcs7';
 import { getTimestampToken } from '../helpers/timestamp';
@@ -42,9 +43,10 @@ export const signWithAzureKeyVaultHSM = async ({
   const certificateName = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_NAME');
 
   // Get certification level from environment variable if not provided
+  // Default to level 2 to allow LTV (DSS) incremental updates
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
 
   if (!keyVaultUrl) {
     logger.error({ module: 'azure-key-vault-hsm' }, 'Azure Key Vault URL not configured');
@@ -355,5 +357,14 @@ export const signWithAzureKeyVaultHSM = async ({
     'PDF signed successfully with Azure Key Vault HSM',
   );
 
-  return signedPdf;
+  // Add LTV (Long-Term Validation) information
+  const ltvEnabledPdf = await addLTV({
+    pdf: signedPdf,
+    certificate: cert,
+    certificateChain: certificateChain.length > 0 ? certificateChain : undefined,
+    timestampToken,
+    moduleName: 'azure-key-vault-hsm',
+  });
+
+  return ltvEnabledPdf;
 };

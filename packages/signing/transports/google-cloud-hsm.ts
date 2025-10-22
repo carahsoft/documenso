@@ -2,8 +2,11 @@ import fs from 'node:fs';
 
 import { env } from '@documenso/lib/utils/env';
 import { signWithGCloud } from '@documenso/pdf-sign';
+import forge from 'node-forge';
 
+import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
+import { parseCertificate } from '../helpers/pkcs7';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
 export type SignWithGoogleCloudHSMOptions = {
@@ -25,9 +28,10 @@ export const signWithGoogleCloudHSM = async ({
   const keyPath = env('NEXT_PRIVATE_SIGNING_GCLOUD_HSM_KEY_PATH');
 
   // Get certification level from environment variable if not provided
+  // Default to level 2 to allow LTV (DSS) incremental updates
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
 
   if (!keyPath) {
     throw new Error('No certificate path provided for Google Cloud HSM signing');
@@ -94,5 +98,40 @@ export const signWithGoogleCloudHSM = async ({
     new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
   ]);
 
-  return signedPdf;
+  // Extract certificate chain if the cert file contains multiple certificates
+  let signingCert: Buffer = cert;
+  let certChain: Buffer[] | undefined;
+
+  try {
+    const certString = cert.toString('utf8');
+
+    // Check if this is a PEM bundle with multiple certificates
+    if (certString.includes('-----BEGIN CERTIFICATE-----')) {
+      const certRegex = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+      const matches = certString.match(certRegex);
+
+      if (matches && matches.length > 1) {
+        // First is signing cert, rest are chain
+        signingCert = Buffer.from(matches[0], 'utf8');
+        certChain = [];
+
+        for (let i = 1; i < matches.length; i++) {
+          certChain.push(Buffer.from(matches[i], 'utf8'));
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to parse certificate chain, LTV may not be fully enabled:', error);
+  }
+
+  // Add LTV (Long-Term Validation) information
+  const ltvEnabledPdf = await addLTV({
+    pdf: signedPdf,
+    certificate: signingCert,
+    certificateChain: certChain,
+    timestampToken: undefined, // GCloud signing doesn't return timestamp token separately
+    moduleName: 'google-cloud-hsm',
+  });
+
+  return ltvEnabledPdf;
 };

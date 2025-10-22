@@ -23,7 +23,7 @@ export async function requestTimestampFromTSA(
   return new Promise((resolve, reject) => {
     try {
       // Create timestamp request
-      const messageImprint = createHash('sha256').update(signature).digest();
+      const messageImprint = createHash('sha256').update(new Uint8Array(signature)).digest();
 
       // Build TimeStampReq according to RFC 3161
       const timestampReq = forge.asn1.create(
@@ -88,7 +88,7 @@ export async function requestTimestampFromTSA(
         const chunks: Buffer[] = [];
 
         res.on('data', (chunk: Buffer) => {
-          chunks.push(chunk);
+          chunks.push(Buffer.from(chunk));
         });
 
         res.on('end', () => {

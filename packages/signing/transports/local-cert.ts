@@ -3,7 +3,9 @@ import * as fs from 'node:fs';
 import { getCertificateStatus } from '@documenso/lib/server-only/cert/cert-status';
 import { env } from '@documenso/lib/utils/env';
 import { signWithP12 } from '@documenso/pdf-sign';
+import forge from 'node-forge';
 
+import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
@@ -21,9 +23,10 @@ export type SignWithLocalCertOptions = {
 
 export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLocalCertOptions) => {
   // Get certification level from environment variable if not provided
+  // Default to level 2 to allow LTV (DSS) incremental updates
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
 
   const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
     pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
@@ -91,6 +94,59 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
     new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
     new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
   ]);
+
+  // Extract certificate and chain from P12 for LTV
+  let signingCert: Buffer | undefined;
+  let certChain: Buffer[] | undefined;
+
+  try {
+    const password = env('NEXT_PRIVATE_SIGNING_PASSPHRASE') || '';
+    const p12Der = forge.util.createBuffer(cert.toString('binary'));
+    const p12Asn1 = forge.asn1.fromDer(p12Der);
+    const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+
+    // Extract certificate and chain from P12
+    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+    const certBagList = certBags[forge.pki.oids.certBag];
+
+    if (certBagList && certBagList.length > 0) {
+      // First certificate is the signing certificate
+      const mainCert = certBagList[0].cert;
+      if (mainCert) {
+        const certAsn1 = forge.pki.certificateToAsn1(mainCert);
+        const certDer = forge.asn1.toDer(certAsn1);
+        signingCert = Buffer.from(certDer.getBytes(), 'binary');
+      }
+
+      // Remaining certificates are the chain
+      if (certBagList.length > 1) {
+        certChain = [];
+        for (let i = 1; i < certBagList.length; i++) {
+          const chainCert = certBagList[i].cert;
+          if (chainCert) {
+            const chainCertAsn1 = forge.pki.certificateToAsn1(chainCert);
+            const chainCertDer = forge.asn1.toDer(chainCertAsn1);
+            certChain.push(Buffer.from(chainCertDer.getBytes(), 'binary'));
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to extract certificate chain from P12, LTV may not be fully enabled:', error);
+  }
+
+  // Add LTV (Long-Term Validation) information if certificate was extracted
+  if (signingCert) {
+    const ltvEnabledPdf = await addLTV({
+      pdf: signedPdf,
+      certificate: signingCert,
+      certificateChain: certChain,
+      timestampToken: undefined, // P12 signing doesn't return timestamp token separately
+      moduleName: 'local-cert',
+    });
+
+    return ltvEnabledPdf;
+  }
 
   return signedPdf;
 };
