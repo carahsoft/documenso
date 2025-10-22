@@ -1,4 +1,5 @@
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFStream } from 'pdf-lib';
+import { createHash } from 'node:crypto';
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName } from 'pdf-lib';
 
 import { logger } from '@documenso/lib/utils/logger';
 
@@ -39,32 +40,6 @@ export type AddLTVOptions = {
 };
 
 /**
- * Extract timestamp from timestamp token for VRI dictionary
- *
- * @param timestampToken - The timestamp token
- * @returns ISO 8601 timestamp string or null
- */
-function extractTimestampFromToken(timestampToken: Buffer): string | null {
-  try {
-    // Timestamp tokens are TSTInfo structures in RFC 3161
-    // For now, use current time as fallback
-    // A full implementation would parse the TSTInfo to get the genTime
-    const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
-    const hours = String(now.getUTCHours()).padStart(2, '0');
-    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(now.getUTCSeconds()).padStart(2, '0');
-
-    // PDF timestamp format: D:YYYYMMDDHHmmSS+00'00'
-    return `D:${year}${month}${day}${hours}${minutes}${seconds}+00'00'`;
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
  * Compute SHA-256 hash of a signature dictionary's Contents field
  * This is used as the key in the VRI dictionary
  *
@@ -72,11 +47,10 @@ function extractTimestampFromToken(timestampToken: Buffer): string | null {
  * @returns Uppercase hex string of SHA-256 hash
  */
 function computeSignatureHash(signatureContents: string): string {
-  const crypto = require('node:crypto');
   // Remove < > if present and convert hex to buffer
   const cleaned = signatureContents.replace(/[<>]/g, '');
   const signatureBuffer = Buffer.from(cleaned, 'hex');
-  const hash = crypto.createHash('sha256').update(signatureBuffer).digest('hex');
+  const hash = createHash('sha256').update(signatureBuffer).digest('hex');
   return hash.toUpperCase();
 }
 
@@ -106,12 +80,19 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
   } = options;
 
   if (!enableLTV) {
-    logger.info({ module: moduleName }, 'LTV is disabled via NEXT_PRIVATE_SIGNING_ENABLE_LTV=false');
+    logger.info(
+      { module: moduleName },
+      'LTV is disabled via NEXT_PRIVATE_SIGNING_ENABLE_LTV=false',
+    );
     return pdf;
   }
 
   logger.info(
-    { module: moduleName, hasCertChain: certificateChain.length > 0, hasTimestamp: !!timestampToken },
+    {
+      module: moduleName,
+      hasCertChain: certificateChain.length > 0,
+      hasTimestamp: !!timestampToken,
+    },
     'Starting LTV enablement process',
   );
 
@@ -184,7 +165,10 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
             if (contents instanceof PDFHexString) {
               const signatureContents = contents.asString();
               signatureHash = computeSignatureHash(signatureContents);
-              logger.info({ module: moduleName, sigHash: signatureHash }, 'Found signature hash for VRI');
+              logger.info(
+                { module: moduleName, sigHash: signatureHash },
+                'Found signature hash for VRI',
+              );
               break;
             }
           }
@@ -196,7 +180,7 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
     try {
       logger.info({ module: moduleName }, 'Adding DSS via manual PDF writing');
 
-      const ltvEnabledPdf = await addDSSManually(
+      const ltvEnabledPdf = addDSSManually(
         pdf,
         certificateChain,
         validOcspResponses,
@@ -225,11 +209,11 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
       throw saveError; // Re-throw to be caught by outer catch
     }
   } catch (error) {
-    logger.error({ module: moduleName, error }, 'Failed to add LTV information, returning original PDF');
+    logger.error(
+      { module: moduleName, error },
+      'Failed to add LTV information, returning original PDF',
+    );
     // Return original PDF if LTV fails - don't break the signing process
     return pdf;
   }
 }
-
-// Helper to import PDFString if needed
-import { PDFString } from 'pdf-lib';

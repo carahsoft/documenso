@@ -92,7 +92,6 @@ export async function requestTimestampFromTSA(
         });
 
         res.on('end', () => {
-          // @ts-expect-error Buffer extends Uint8Array at runtime
           const responseBody = Buffer.concat(chunks);
 
           if (res.statusCode !== 200) {

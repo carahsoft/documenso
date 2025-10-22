@@ -91,6 +91,7 @@ export function buildOCSPRequest(certificate: Buffer, issuerCertificate: Buffer)
 
   // Hash issuer public key
   const md2 = forge.md.sha1.create();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const issuerCertDer = forge.asn1.toDer((issuerCert as any).tbsCertificate).getBytes();
   const issuerCertAsn1 = forge.asn1.fromDer(issuerCertDer);
 
@@ -109,10 +110,7 @@ export function buildOCSPRequest(certificate: Buffer, issuerCertificate: Buffer)
       ) {
         const first = field.value[0];
         const second = field.value[1];
-        if (
-          first.type === forge.asn1.Type.SEQUENCE &&
-          second.type === forge.asn1.Type.BITSTRING
-        ) {
+        if (first.type === forge.asn1.Type.SEQUENCE && second.type === forge.asn1.Type.BITSTRING) {
           subjectPublicKeyInfo = field;
           break;
         }
@@ -127,7 +125,7 @@ export function buildOCSPRequest(certificate: Buffer, issuerCertificate: Buffer)
         const bitStringBytes = bitStringDer.getBytes();
 
         let offset = 1; // Skip tag
-        let lengthByte = bitStringBytes.charCodeAt(offset);
+        const lengthByte = bitStringBytes.charCodeAt(offset);
         offset++;
 
         if (lengthByte & 0x80) {
@@ -216,9 +214,7 @@ export function buildOCSPRequest(certificate: Buffer, issuerCertificate: Buffer)
 
   // Build requestExtensions [2] EXPLICIT
   const requestExtensions = forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 2, true, [
-    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-      nonceExtension,
-    ]),
+    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [nonceExtension]),
   ]);
 
   // Build TBSRequest
@@ -245,11 +241,11 @@ export function buildOCSPRequest(certificate: Buffer, issuerCertificate: Buffer)
  * Adobe LTV requires the OCSP signing certificate chain to be embedded in the BasicOCSPResponse.
  * Many OCSP servers (like Sectigo) don't include this, so we need to add it manually.
  */
-async function addCertsToOCSPResponse(
+function addCertsToOCSPResponse(
   ocspResponseBuffer: Buffer,
   issuerCert: forge.pki.Certificate,
   moduleName: string,
-): Promise<Buffer | null> {
+): Buffer | null {
   try {
     // Parse the OCSPResponse
     const ocspResponseAsn1 = forge.asn1.fromDer(
@@ -405,7 +401,6 @@ export async function fetchOCSPResponse(
           });
 
           res.on('end', () => {
-            // @ts-expect-error Buffer extends Uint8Array at runtime
             const responseBody = Buffer.concat(chunks);
 
             if (res.statusCode !== 200) {
@@ -529,11 +524,7 @@ export async function fetchOCSPResponse(
     // Adobe's OCSP responses include the OCSP signing certificate chain in the certs [0] field
     // Sectigo's OCSP server doesn't include this, so we need to add it manually
     const issuerCert = parseCertificate(issuerCertificate);
-    const enhancedOcspResponse = await addCertsToOCSPResponse(
-      responseBuffer,
-      issuerCert,
-      moduleName,
-    );
+    const enhancedOcspResponse = addCertsToOCSPResponse(responseBuffer, issuerCert, moduleName);
 
     if (enhancedOcspResponse) {
       logger.info(
@@ -551,7 +542,10 @@ export async function fetchOCSPResponse(
     return responseBuffer;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorDetails =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.warn(
       { module: moduleName, error: errorMessage, details: errorDetails },
       'Failed to fetch OCSP response',
@@ -592,10 +586,7 @@ export async function fetchOCSPResponsesForChain(
         'Certificate in chain',
       );
     } catch (error) {
-      logger.warn(
-        { module: moduleName, index: i, error },
-        'Failed to parse certificate in chain',
-      );
+      logger.warn({ module: moduleName, index: i, error }, 'Failed to parse certificate in chain');
     }
   }
 

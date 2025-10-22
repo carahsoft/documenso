@@ -6,13 +6,13 @@ import { logger } from '@documenso/lib/utils/logger';
  * This approach doesn't use pdf-lib's serialization at all - we write
  * raw PDF syntax to ensure nothing gets corrupted.
  */
-export async function addDSSManually(
+export function addDSSManually(
   originalPdf: Buffer,
   certificates: Buffer[],
   ocspResponses: Buffer[],
   signatureHash: string | null,
   moduleName = 'ltv',
-): Promise<Buffer> {
+): Buffer {
   try {
     logger.info({ module: moduleName }, 'Starting manual DSS addition');
 
@@ -115,8 +115,8 @@ export async function addDSSManually(
 
     // TEMPORARILY SKIP VRI to test if it's causing signature invalidation
     // Write VRI dictionary (if we have a signature hash)
-    let vriObjNum: number | null = null;
     // DISABLED FOR TESTING
+    // let vriObjNum: number | null = null;
     // if (signatureHash && certObjNums.length > 0 && ocspObjNums.length > 0) {
     //   vriObjNum = nextObjNum++;
     //   xrefEntries.set(vriObjNum, currentOffset);

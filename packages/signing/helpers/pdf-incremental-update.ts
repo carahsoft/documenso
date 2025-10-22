@@ -93,6 +93,7 @@ export async function addDSSViaIncrementalUpdate(
 
     // Collect DSS and all its referenced objects
     const newObjects = new Map<number, PDFRef>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const objectsToWrite: Array<{ ref: PDFRef; obj?: any; manualContent?: string }> = [];
 
     // Add the modified catalog as manual content
@@ -101,6 +102,7 @@ export async function addDSSViaIncrementalUpdate(
     objectsToWrite.push({ ref: catalogRef, manualContent: catalogContent });
 
     // Recursively collect DSS and referenced objects
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const collectObjects = (ref: PDFRef, obj: any) => {
       if (newObjects.has(ref.objectNumber)) return;
 
@@ -132,7 +134,10 @@ export async function addDSSViaIncrementalUpdate(
 
     collectObjects(dssRef, dssDict);
 
-    logger.info({ module: moduleName, objectCount: objectsToWrite.length }, 'Collected objects to write');
+    logger.info(
+      { module: moduleName, objectCount: objectsToWrite.length },
+      'Collected objects to write',
+    );
 
     // Build the incremental update
     const chunks: Buffer[] = [];
@@ -211,7 +216,8 @@ export async function addDSSViaIncrementalUpdate(
     const sortedEntries = Array.from(xrefEntries.entries()).sort((a, b) => a[0] - b[0]);
 
     // Write xref subsections (groups of consecutive object numbers)
-    const subsections: Array<{ start: number; count: number; entries: Array<[number, number]> }> = [];
+    const subsections: Array<{ start: number; count: number; entries: Array<[number, number]> }> =
+      [];
     let currentSubsection: Array<[number, number]> = [];
     let subsectionStart = sortedEntries[0]?.[0] ?? 0;
 
@@ -252,7 +258,7 @@ export async function addDSSViaIncrementalUpdate(
       chunks.push(Buffer.from(subsectionHeader, 'latin1'));
       currentOffset += subsectionHeader.length;
 
-      for (const [objNum, offset] of subsection.entries) {
+      for (const [_objNum, offset] of subsection.entries) {
         // xref entry format: "nnnnnnnnnn ggggg n \n" (offset, generation, in-use flag)
         const offsetStr = offset.toString().padStart(10, '0');
         const genStr = '00000'; // generation number, typically 0
@@ -269,11 +275,13 @@ export async function addDSSViaIncrementalUpdate(
 
     // Build trailer dictionary
     // Get the current Size from the original trailer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const trailer = context.trailerInfo as any;
     const originalSize = trailer?.dict?.get?.(PDFName.of('Size')) || trailer?.Size;
     let totalSize = context.largestObjectNumber + 1;
 
     if (originalSize && typeof originalSize === 'object' && 'asNumber' in originalSize) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const origSizeNum = (originalSize as any).asNumber();
       if (origSizeNum > totalSize) {
         totalSize = origSizeNum;
