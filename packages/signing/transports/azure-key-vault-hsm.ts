@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { env } from '@documenso/lib/utils/env';
 import { logger } from '@documenso/lib/utils/logger';
 
+import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
 import { buildAuthenticatedAttributes, buildPKCS7Signature } from '../helpers/pkcs7';
 import { getTimestampToken } from '../helpers/timestamp';
@@ -355,5 +356,14 @@ export const signWithAzureKeyVaultHSM = async ({
     'PDF signed successfully with Azure Key Vault HSM',
   );
 
-  return signedPdf;
+  // Add LTV (Long-Term Validation) information
+  const ltvEnabledPdf = await addLTV({
+    pdf: signedPdf,
+    certificate: cert,
+    certificateChain: certificateChain.length > 0 ? certificateChain : undefined,
+    timestampToken,
+    moduleName: 'azure-key-vault-hsm',
+  });
+
+  return ltvEnabledPdf;
 };

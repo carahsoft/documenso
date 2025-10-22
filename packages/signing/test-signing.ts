@@ -120,7 +120,8 @@ async function main() {
     console.log(`✓ PDF signed successfully in ${duration}ms`);
 
     // Write output PDF
-    fs.writeFileSync(resolvedOutputPath, signedPdf as Buffer);
+    // @ts-expect-error Buffer extends Uint8Array at runtime
+    fs.writeFileSync(resolvedOutputPath, signedPdf instanceof Buffer ? signedPdf : Buffer.from(signedPdf));
     console.log(`✓ Wrote signed PDF (${signedPdf.length} bytes)`);
   } catch (error) {
     console.error('\n=== ❌ Error during signing ===\n');
