@@ -3,6 +3,7 @@ import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFStream } from
 import { logger } from '@documenso/lib/utils/logger';
 
 import { fetchOCSPResponsesForChain } from './ocsp';
+import { addDSSManually } from './pdf-manual-update';
 
 export type AddLTVOptions = {
   /**
@@ -116,10 +117,14 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
 
   try {
     // Load the signed PDF
+    logger.info({ module: moduleName, pdfSize: pdf.length }, 'Loading signed PDF for LTV');
+
     const doc = await PDFDocument.load(pdf, {
       updateMetadata: false,
       ignoreEncryption: true,
     });
+
+    logger.info({ module: moduleName }, 'PDF loaded successfully');
 
     const catalog = doc.catalog;
 
@@ -158,48 +163,11 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
       'OCSP responses fetched successfully',
     );
 
-    // Create DSS dictionary
-    const dss = doc.context.obj({});
+    // NOTE: Environment variable skip flags removed - now testing manual PDF writing approach
+    // The manual approach writes raw PDF syntax to avoid pdf-lib serialization issues
 
-    // Add certificates to DSS (excluding the signing cert, only intermediates)
-    if (certificateChain.length > 0) {
-      const certsArray = PDFArray.withContext(doc.context);
-
-      for (const cert of certificateChain) {
-        // Create a stream for each certificate
-        const certStream = doc.context.stream(new Uint8Array(cert));
-        certsArray.push(certStream);
-      }
-
-      dss.set(PDFName.of('Certs'), certsArray);
-      logger.info(
-        { module: moduleName, certCount: certificateChain.length },
-        'Added certificates to DSS',
-      );
-    }
-
-    // Add OCSP responses to DSS
-    if (validOcspResponses.length > 0) {
-      const ocspsArray = PDFArray.withContext(doc.context);
-
-      for (const ocspResponse of validOcspResponses) {
-        // Create a stream for each OCSP response
-        const ocspStream = doc.context.stream(new Uint8Array(ocspResponse));
-        ocspsArray.push(ocspStream);
-      }
-
-      dss.set(PDFName.of('OCSPs'), ocspsArray);
-      logger.info(
-        { module: moduleName, ocspCount: validOcspResponses.length },
-        'Added OCSP responses to DSS',
-      );
-    }
-
-    // Find the signature dictionary to create VRI entry
-    // We need to find the last signature in the document
-    let signatureRef: PDFDict | null = null;
-    let signatureContents: string | null = null;
-
+    // Find the signature hash for VRI
+    let signatureHash: string | null = null;
     const acroForm = catalog.lookup(PDFName.of('AcroForm'), PDFDict);
     if (acroForm) {
       const fields = acroForm.lookup(PDFName.of('Fields'), PDFArray);
@@ -212,10 +180,11 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
 
           // Check if this is a signature field (FT = /Sig)
           if (ft?.asString() === '/Sig' && v instanceof PDFDict) {
-            signatureRef = v;
             const contents = v.lookup(PDFName.of('Contents'));
             if (contents instanceof PDFHexString) {
-              signatureContents = contents.asString();
+              const signatureContents = contents.asString();
+              signatureHash = computeSignatureHash(signatureContents);
+              logger.info({ module: moduleName, sigHash: signatureHash }, 'Found signature hash for VRI');
               break;
             }
           }
@@ -223,70 +192,38 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
       }
     }
 
-    // Create VRI dictionary if we found a signature
-    if (signatureRef && signatureContents) {
-      const vri = doc.context.obj({});
+    // Use manual PDF writing to add DSS without corrupting the PDF
+    try {
+      logger.info({ module: moduleName }, 'Adding DSS via manual PDF writing');
 
-      // Compute hash of signature contents for VRI key
-      const sigHash = computeSignatureHash(signatureContents);
-      logger.info({ module: moduleName, sigHash }, 'Creating VRI entry for signature');
+      const ltvEnabledPdf = await addDSSManually(
+        pdf,
+        certificateChain,
+        validOcspResponses,
+        signatureHash,
+        moduleName,
+      );
 
-      // Create VRI entry for this signature
-      const vriEntry = doc.context.obj({});
+      logger.info(
+        { module: moduleName, originalSize: pdf.length, newSize: ltvEnabledPdf.length },
+        'LTV enabled successfully with manual update',
+      );
 
-      // Add certificates to VRI entry
-      if (certificateChain.length > 0) {
-        const vriCertsArray = PDFArray.withContext(doc.context);
-        for (const cert of certificateChain) {
-          const certStream = doc.context.stream(new Uint8Array(cert));
-          vriCertsArray.push(certStream);
-        }
-        vriEntry.set(PDFName.of('Cert'), vriCertsArray);
+      // Validate the PDF structure before returning
+      const pdfHeader = ltvEnabledPdf.slice(0, 5).toString('ascii');
+      if (!pdfHeader.startsWith('%PDF-')) {
+        logger.error({ module: moduleName, header: pdfHeader }, 'Invalid PDF header after save');
+        throw new Error('Invalid PDF structure after adding LTV');
       }
 
-      // Add OCSP responses to VRI entry
-      if (validOcspResponses.length > 0) {
-        const vriOcspsArray = PDFArray.withContext(doc.context);
-        for (const ocspResponse of validOcspResponses) {
-          const ocspStream = doc.context.stream(new Uint8Array(ocspResponse));
-          vriOcspsArray.push(ocspStream);
-        }
-        vriEntry.set(PDFName.of('OCSP'), vriOcspsArray);
-      }
-
-      // Add timestamp to VRI entry if available
-      if (timestampToken) {
-        const timestamp = extractTimestampFromToken(timestampToken);
-        if (timestamp) {
-          vriEntry.set(PDFName.of('TU'), PDFString.of(timestamp));
-          logger.info({ module: moduleName, timestamp }, 'Added timestamp to VRI');
-        }
-      }
-
-      // Add VRI entry to VRI dictionary using signature hash as key
-      vri.set(PDFName.of(sigHash), vriEntry);
-
-      // Add VRI dictionary to DSS
-      dss.set(PDFName.of('VRI'), vri);
-      logger.info({ module: moduleName }, 'Added VRI dictionary to DSS');
-    } else {
-      logger.warn({ module: moduleName }, 'Could not find signature in document for VRI entry');
+      return ltvEnabledPdf;
+    } catch (saveError) {
+      logger.error(
+        { module: moduleName, error: saveError },
+        'Failed to add DSS via manual update, returning original',
+      );
+      throw saveError; // Re-throw to be caught by outer catch
     }
-
-    // Add DSS to catalog
-    catalog.set(PDFName.of('DSS'), dss);
-    logger.info({ module: moduleName }, 'Added DSS to document catalog');
-
-    // Save with incremental update to preserve signature
-    const ltvEnabledPdf = await doc.save({
-      useObjectStreams: false,
-      addDefaultPage: false,
-      updateFieldAppearances: false,
-    });
-
-    logger.info({ module: moduleName }, 'LTV enabled successfully');
-
-    return Buffer.from(ltvEnabledPdf);
   } catch (error) {
     logger.error({ module: moduleName, error }, 'Failed to add LTV information, returning original PDF');
     // Return original PDF if LTV fails - don't break the signing process
