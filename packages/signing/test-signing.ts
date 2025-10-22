@@ -38,12 +38,16 @@
  * Optional environment variables (all transports):
  *   NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL
  */
+import * as dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 
 import { signWithAzureKeyVaultHSM } from './transports/azure-key-vault-hsm';
 import { signWithGoogleCloudHSM } from './transports/google-cloud-hsm';
 import { signWithLocalCert } from './transports/local-cert';
+
+// Load environment variables from .env file
+dotenv.config();
 
 async function main() {
   const args = process.argv.slice(2);
