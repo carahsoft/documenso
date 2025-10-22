@@ -1,7 +1,6 @@
 import { ClientSecretCredential, DefaultAzureCredential } from '@azure/identity';
 import { CertificateClient } from '@azure/keyvault-certificates';
-import type { SignatureAlgorithm } from '@azure/keyvault-keys';
-import { CryptographyClient } from '@azure/keyvault-keys';
+import { CryptographyClient, KnownSignatureAlgorithms } from '@azure/keyvault-keys';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 
@@ -15,6 +14,14 @@ import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder'
 
 export type SignWithAzureKeyVaultHSMOptions = {
   pdf: Buffer;
+  /**
+   * Certification level for DocMDP (Document Modification Detection and Prevention)
+   * - 0 or undefined: Approval signature (no certification, no DocMDP)
+   * - 1: No changes allowed after signing (certified, locked)
+   * - 2: Form filling allowed
+   * - 3: Form filling and annotations allowed
+   */
+  certificationLevel?: 0 | 1 | 2 | 3;
 };
 
 /**
@@ -24,12 +31,20 @@ export type SignWithAzureKeyVaultHSMOptions = {
  * It supports both DefaultAzureCredential (for managed identities, Azure CLI, etc.)
  * and ClientSecretCredential (for service principal authentication).
  */
-export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSMOptions) => {
+export const signWithAzureKeyVaultHSM = async ({
+  pdf,
+  certificationLevel,
+}: SignWithAzureKeyVaultHSMOptions) => {
   logger.info({ module: 'azure-key-vault-hsm' }, 'Starting Azure Key Vault HSM signing process');
 
   const keyVaultUrl = env('NEXT_PRIVATE_SIGNING_AZURE_KEY_VAULT_URL');
   const keyName = env('NEXT_PRIVATE_SIGNING_AZURE_KEY_NAME');
   const certificateName = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_NAME');
+
+  // Get certification level from environment variable if not provided
+  const effectiveCertificationLevel =
+    certificationLevel ??
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
 
   if (!keyVaultUrl) {
     logger.error({ module: 'azure-key-vault-hsm' }, 'Azure Key Vault URL not configured');
@@ -83,7 +98,7 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 
   try {
     const placeholderResult = updateSigningPlaceholder({
-      pdf: await addSigningPlaceholder({ pdf }),
+      pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
     });
     pdfWithPlaceholder = placeholderResult.pdf;
     byteRange = placeholderResult.byteRange;
@@ -262,15 +277,22 @@ export const signWithAzureKeyVaultHSM = async ({ pdf }: SignWithAzureKeyVaultHSM
 
   try {
     signResult = await cryptoClient.sign(
-      'RS256' as SignatureAlgorithm,
+      KnownSignatureAlgorithms.RS256,
       new Uint8Array(authenticatedAttributesHash),
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     logger.error(
-      { module: 'azure-key-vault-hsm', error },
+      {
+        module: 'azure-key-vault-hsm',
+        error: errorMessage,
+        errorDetails: error,
+        stack: errorStack,
+      },
       'Azure Key Vault signing operation failed',
     );
-    throw new Error('Azure Key Vault signing operation failed');
+    throw new Error(`Azure Key Vault signing operation failed: ${errorMessage}`);
   }
 
   if (!signResult.result) {
