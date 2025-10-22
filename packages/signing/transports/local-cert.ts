@@ -23,9 +23,10 @@ export type SignWithLocalCertOptions = {
 
 export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLocalCertOptions) => {
   // Get certification level from environment variable if not provided
+  // Default to level 2 to allow LTV (DSS) incremental updates
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
 
   const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
     pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
