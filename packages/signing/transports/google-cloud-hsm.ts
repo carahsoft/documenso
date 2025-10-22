@@ -8,10 +8,26 @@ import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder'
 
 export type SignWithGoogleCloudHSMOptions = {
   pdf: Buffer;
+  /**
+   * Certification level for DocMDP (Document Modification Detection and Prevention)
+   * - 0 or undefined: Approval signature (no certification, no DocMDP)
+   * - 1: No changes allowed after signing (certified, locked)
+   * - 2: Form filling allowed
+   * - 3: Form filling and annotations allowed
+   */
+  certificationLevel?: 0 | 1 | 2 | 3;
 };
 
-export const signWithGoogleCloudHSM = async ({ pdf }: SignWithGoogleCloudHSMOptions) => {
+export const signWithGoogleCloudHSM = async ({
+  pdf,
+  certificationLevel,
+}: SignWithGoogleCloudHSMOptions) => {
   const keyPath = env('NEXT_PRIVATE_SIGNING_GCLOUD_HSM_KEY_PATH');
+
+  // Get certification level from environment variable if not provided
+  const effectiveCertificationLevel =
+    certificationLevel ??
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
 
   if (!keyPath) {
     throw new Error('No certificate path provided for Google Cloud HSM signing');
@@ -33,7 +49,7 @@ export const signWithGoogleCloudHSM = async ({ pdf }: SignWithGoogleCloudHSMOpti
   }
 
   const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
-    pdf: await addSigningPlaceholder({ pdf }),
+    pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
   });
 
   const pdfWithoutSignature = Buffer.concat([

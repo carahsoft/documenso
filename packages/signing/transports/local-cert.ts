@@ -9,11 +9,24 @@ import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder'
 
 export type SignWithLocalCertOptions = {
   pdf: Buffer;
+  /**
+   * Certification level for DocMDP (Document Modification Detection and Prevention)
+   * - 0 or undefined: Approval signature (no certification, no DocMDP)
+   * - 1: No changes allowed after signing (certified, locked)
+   * - 2: Form filling allowed
+   * - 3: Form filling and annotations allowed
+   */
+  certificationLevel?: 0 | 1 | 2 | 3;
 };
 
-export const signWithLocalCert = async ({ pdf }: SignWithLocalCertOptions) => {
+export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLocalCertOptions) => {
+  // Get certification level from environment variable if not provided
+  const effectiveCertificationLevel =
+    certificationLevel ??
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '1', 10) as 0 | 1 | 2 | 3);
+
   const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
-    pdf: await addSigningPlaceholder({ pdf }),
+    pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
   });
 
   const pdfWithoutSignature = Buffer.concat([
