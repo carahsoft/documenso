@@ -2,6 +2,7 @@
   "private": true,
   "version": "1.12.9",
   "scripts": {
+    "test:sign": "tsx packages/signing/test-signing.ts sample.pdf output.pdf",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=@documenso/remix",
     "dev:remix": "turbo run dev --filter=@documenso/remix",

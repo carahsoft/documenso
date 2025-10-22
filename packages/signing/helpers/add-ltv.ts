@@ -105,11 +105,14 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
   } = options;
 
   if (!enableLTV) {
-    logger.info({ module: moduleName }, 'LTV is disabled, skipping');
+    logger.info({ module: moduleName }, 'LTV is disabled via NEXT_PRIVATE_SIGNING_ENABLE_LTV=false');
     return pdf;
   }
 
-  logger.info({ module: moduleName }, 'Starting LTV enablement process');
+  logger.info(
+    { module: moduleName, hasCertChain: certificateChain.length > 0, hasTimestamp: !!timestampToken },
+    'Starting LTV enablement process',
+  );
 
   try {
     // Load the signed PDF
