@@ -11,6 +11,7 @@ import { Button } from '@documenso/ui/primitives/button';
 import { Checkbox } from '@documenso/ui/primitives/checkbox';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -258,9 +259,11 @@ export const TemplateBulkSendDialog = ({
             />
 
             <DialogFooter className="mt-4">
-              <Button variant="secondary" onClick={() => form.reset()} type="button">
-                <Trans>Cancel</Trans>
-              </Button>
+              <DialogClose asChild>
+                <Button variant="secondary" onClick={() => form.reset()} type="button">
+                  <Trans>Cancel</Trans>
+                </Button>
+              </DialogClose>
 
               <Button type="submit" loading={form.formState.isSubmitting}>
                 <Trans>Upload and Process</Trans>
