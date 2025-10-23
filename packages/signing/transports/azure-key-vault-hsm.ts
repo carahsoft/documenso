@@ -7,8 +7,9 @@ import fs from 'node:fs';
 import { env } from '@documenso/lib/utils/env';
 import { logger } from '@documenso/lib/utils/logger';
 
-import { addLTV } from '../helpers/add-ltv';
+import { addDSSBeforeSigning } from '../helpers/add-dss-before-signing';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
+import { fetchOCSPResponsesForChain } from '../helpers/ocsp';
 import { buildAuthenticatedAttributes, buildPKCS7Signature } from '../helpers/pkcs7';
 import { getTimestampToken } from '../helpers/timestamp';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
@@ -94,34 +95,9 @@ export const signWithAzureKeyVaultHSM = async ({
     throw new Error('Failed to initialize Azure credentials');
   }
 
-  // Prepare PDF with placeholder
-  let pdfWithPlaceholder: Buffer;
-  let byteRange: number[];
+  // STEP 1: Get the certificate from Azure Key Vault (before creating placeholder)
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Loading certificate from Azure Key Vault');
 
-  try {
-    const placeholderResult = updateSigningPlaceholder({
-      pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
-    });
-    pdfWithPlaceholder = placeholderResult.pdf;
-    byteRange = placeholderResult.byteRange;
-  } catch (error) {
-    logger.error(
-      { module: 'azure-key-vault-hsm', error },
-      'Failed to prepare PDF with signing placeholder',
-    );
-    throw new Error('Failed to prepare PDF for signing');
-  }
-
-  const pdfWithoutSignature = Buffer.concat([
-    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
-    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
-  ]);
-
-  const signatureLength = byteRange[2] - byteRange[1];
-
-  logger.info({ module: 'azure-key-vault-hsm', signatureLength }, 'PDF prepared with placeholder');
-
-  // Get the certificate from Azure Key Vault
   let cert: Buffer | null = null;
 
   const azureCertificateContents = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_CONTENTS');
@@ -240,7 +216,93 @@ export const signWithAzureKeyVaultHSM = async ({
     );
   }
 
-  // Create cryptography client for signing
+  // STEP 2: Add LTV (DSS) to PDF BEFORE signing (if enabled and we have certificate chain)
+  let pdfToSign = pdf; // Start with original PDF
+  const enableLTV = process.env.NEXT_PRIVATE_SIGNING_DISABLE_LTV !== 'true';
+
+  if (enableLTV && cert && certificateChain.length > 0) {
+    logger.info(
+      { module: 'azure-key-vault-hsm', chainLength: certificateChain.length },
+      'LTV enabled - fetching OCSP responses and adding DSS before signing',
+    );
+
+    try {
+      // Build full chain for OCSP
+      const fullChain = [cert, ...certificateChain];
+
+      // Fetch OCSP responses
+      const ocspResponses = await fetchOCSPResponsesForChain(fullChain, 'azure-key-vault-hsm');
+      const validOcspResponses = ocspResponses.filter((resp): resp is Buffer => resp !== null);
+
+      if (validOcspResponses.length > 0) {
+        logger.info(
+          { module: 'azure-key-vault-hsm', ocspCount: validOcspResponses.length },
+          'OCSP responses fetched, adding DSS to PDF',
+        );
+
+        // Add DSS to PDF before signing
+        pdfToSign = await addDSSBeforeSigning({
+          pdf: pdfToSign,
+          certificateChain,
+          ocspResponses: validOcspResponses,
+          moduleName: 'azure-key-vault-hsm',
+        });
+
+        logger.info({ module: 'azure-key-vault-hsm' }, 'DSS added to PDF successfully');
+      } else {
+        logger.warn(
+          { module: 'azure-key-vault-hsm' },
+          'No valid OCSP responses, continuing without LTV',
+        );
+      }
+    } catch (error) {
+      logger.warn(
+        { module: 'azure-key-vault-hsm', error },
+        'Failed to add LTV before signing, continuing without LTV',
+      );
+    }
+  } else if (enableLTV) {
+    logger.info(
+      { module: 'azure-key-vault-hsm' },
+      'LTV cannot be enabled: certificate chain not available',
+    );
+  } else {
+    logger.info({ module: 'azure-key-vault-hsm' }, 'LTV is disabled via environment variable');
+  }
+
+  // STEP 3: Prepare PDF with signing placeholder
+  logger.info({ module: 'azure-key-vault-hsm' }, 'Adding signing placeholder');
+
+  let pdfWithPlaceholder: Buffer;
+  let byteRange: number[];
+
+  try {
+    const placeholderResult = updateSigningPlaceholder({
+      pdf: await addSigningPlaceholder({
+        pdf: pdfToSign, // Use the (possibly DSS-enhanced) PDF
+        certificationLevel: effectiveCertificationLevel,
+      }),
+    });
+    pdfWithPlaceholder = placeholderResult.pdf;
+    byteRange = placeholderResult.byteRange;
+  } catch (error) {
+    logger.error(
+      { module: 'azure-key-vault-hsm', error },
+      'Failed to prepare PDF with signing placeholder',
+    );
+    throw new Error('Failed to prepare PDF for signing');
+  }
+
+  const pdfWithoutSignature = Buffer.concat([
+    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
+    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
+  ]);
+
+  const signatureLength = byteRange[2] - byteRange[1];
+
+  logger.info({ module: 'azure-key-vault-hsm', signatureLength }, 'PDF prepared with placeholder');
+
+  // STEP 4: Create cryptography client for signing
   logger.info({ module: 'azure-key-vault-hsm', keyName }, 'Creating cryptography client');
 
   let cryptoClient: CryptographyClient;
@@ -355,14 +417,6 @@ export const signWithAzureKeyVaultHSM = async ({
     'PDF signed successfully with Azure Key Vault HSM',
   );
 
-  // Add LTV (Long-Term Validation) information
-  const ltvEnabledPdf = await addLTV({
-    pdf: signedPdf,
-    certificate: cert,
-    certificateChain: certificateChain.length > 0 ? certificateChain : undefined,
-    signature,
-    moduleName: 'azure-key-vault-hsm',
-  });
-
-  return ltvEnabledPdf;
+  // Return signed PDF (LTV was already added before signing)
+  return signedPdf;
 };

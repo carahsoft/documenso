@@ -5,8 +5,9 @@ import { getCertificateStatus } from '@documenso/lib/server-only/cert/cert-statu
 import { env } from '@documenso/lib/utils/env';
 import { signWithP12 } from '@documenso/pdf-sign';
 
-import { addLTV } from '../helpers/add-ltv';
+import { addDSSBeforeSigning } from '../helpers/add-dss-before-signing';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
+import { fetchOCSPResponsesForChain } from '../helpers/ocsp';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
 export type SignWithLocalCertOptions = {
@@ -28,17 +29,7 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
     certificationLevel ??
     (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
 
-  const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
-    pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
-  });
-
-  const pdfWithoutSignature = Buffer.concat([
-    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
-    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
-  ]);
-
-  const signatureLength = byteRange[2] - byteRange[1];
-
+  // STEP 1: Load P12 certificate file
   const certStatus = getCertificateStatus();
 
   if (!certStatus.isAvailable) {
@@ -78,24 +69,7 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
     }
   }
 
-  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
-
-  const signature = signWithP12({
-    cert,
-    content: pdfWithoutSignature,
-    password: env('NEXT_PRIVATE_SIGNING_PASSPHRASE') || undefined,
-    timestampServer: timestampServerUrl,
-  });
-
-  const signatureAsHex = signature.toString('hex');
-
-  const signedPdf = Buffer.concat([
-    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
-    new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
-    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
-  ]);
-
-  // Extract certificate and chain from P12 for LTV
+  // STEP 2: Extract certificate and chain from P12 (before signing)
   let signingCert: Buffer | undefined;
   let certChain: Buffer[] | undefined;
 
@@ -138,18 +112,66 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
     );
   }
 
-  // Add LTV (Long-Term Validation) information if certificate was extracted
-  if (signingCert) {
-    const ltvEnabledPdf = await addLTV({
-      pdf: signedPdf,
-      certificate: signingCert,
-      certificateChain: certChain,
-      signature,
-      moduleName: 'local-cert',
-    });
+  // STEP 3: Add LTV (DSS) to PDF BEFORE signing (if enabled and we have certificate chain)
+  let pdfToSign = pdf; // Start with original PDF
+  const enableLTV = process.env.NEXT_PRIVATE_SIGNING_DISABLE_LTV !== 'true';
 
-    return ltvEnabledPdf;
+  if (enableLTV && signingCert && certChain && certChain.length > 0) {
+    try {
+      // Build full chain for OCSP
+      const fullChain = [signingCert, ...certChain];
+
+      // Fetch OCSP responses
+      const ocspResponses = await fetchOCSPResponsesForChain(fullChain, 'local-cert');
+      const validOcspResponses = ocspResponses.filter((resp): resp is Buffer => resp !== null);
+
+      if (validOcspResponses.length > 0) {
+        // Add DSS to PDF before signing
+        pdfToSign = await addDSSBeforeSigning({
+          pdf: pdfToSign,
+          certificateChain: certChain,
+          ocspResponses: validOcspResponses,
+          moduleName: 'local-cert',
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to add LTV before signing, continuing without LTV:', error);
+    }
   }
 
+  // STEP 4: Prepare PDF with signing placeholder
+  const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
+    pdf: await addSigningPlaceholder({
+      pdf: pdfToSign, // Use the (possibly DSS-enhanced) PDF
+      certificationLevel: effectiveCertificationLevel,
+    }),
+  });
+
+  const pdfWithoutSignature = Buffer.concat([
+    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
+    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
+  ]);
+
+  const signatureLength = byteRange[2] - byteRange[1];
+
+  // STEP 5: Sign the PDF
+  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
+
+  const signature = signWithP12({
+    cert,
+    content: pdfWithoutSignature,
+    password: env('NEXT_PRIVATE_SIGNING_PASSPHRASE') || undefined,
+    timestampServer: timestampServerUrl,
+  });
+
+  const signatureAsHex = signature.toString('hex');
+
+  const signedPdf = Buffer.concat([
+    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
+    new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
+    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
+  ]);
+
+  // Return signed PDF (LTV was already added before signing)
   return signedPdf;
 };

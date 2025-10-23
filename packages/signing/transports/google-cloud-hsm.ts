@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import { env } from '@documenso/lib/utils/env';
 import { signWithGCloud } from '@documenso/pdf-sign';
 
-import { addLTV } from '../helpers/add-ltv';
+import { addDSSBeforeSigning } from '../helpers/add-dss-before-signing';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
+import { fetchOCSPResponsesForChain } from '../helpers/ocsp';
+import { parseCertificate } from '../helpers/pkcs7';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
 export type SignWithGoogleCloudHSMOptions = {
@@ -50,17 +52,7 @@ export const signWithGoogleCloudHSM = async ({
     }
   }
 
-  const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
-    pdf: await addSigningPlaceholder({ pdf, certificationLevel: effectiveCertificationLevel }),
-  });
-
-  const pdfWithoutSignature = Buffer.concat([
-    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
-    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
-  ]);
-
-  const signatureLength = byteRange[2] - byteRange[1];
-
+  // STEP 1: Load certificate (before creating placeholder)
   let cert: Buffer | null = null;
 
   const googleCloudHsmPublicCrtFileContents = env(
@@ -79,24 +71,7 @@ export const signWithGoogleCloudHSM = async ({
     );
   }
 
-  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
-
-  const signature = signWithGCloud({
-    keyPath,
-    cert,
-    content: pdfWithoutSignature,
-    timestampServer: timestampServerUrl,
-  });
-
-  const signatureAsHex = signature.toString('hex');
-
-  const signedPdf = Buffer.concat([
-    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
-    new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
-    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
-  ]);
-
-  // Extract certificate chain if the cert file contains multiple certificates
+  // STEP 2: Extract certificate chain if the cert file contains multiple certificates
   let signingCert: Buffer = cert;
   let certChain: Buffer[] | undefined;
 
@@ -122,14 +97,70 @@ export const signWithGoogleCloudHSM = async ({
     console.warn('Failed to parse certificate chain, LTV may not be fully enabled:', error);
   }
 
-  // Add LTV (Long-Term Validation) information
-  const ltvEnabledPdf = await addLTV({
-    pdf: signedPdf,
-    certificate: signingCert,
-    certificateChain: certChain,
-    signature,
-    moduleName: 'google-cloud-hsm',
+  // STEP 3: Add LTV (DSS) to PDF BEFORE signing (if enabled and we have certificate chain)
+  let pdfToSign = pdf; // Start with original PDF
+  const enableLTV = process.env.NEXT_PRIVATE_SIGNING_DISABLE_LTV !== 'true';
+
+  if (enableLTV && certChain && certChain.length > 0) {
+    try {
+      // Convert PEM certs to DER for OCSP
+      const signingCertDer = parseCertificate(signingCert);
+      const certChainDer = certChain.map((pemCert) => parseCertificate(pemCert));
+
+      // Build full chain for OCSP
+      const fullChain = [signingCertDer, ...certChainDer];
+
+      // Fetch OCSP responses
+      const ocspResponses = await fetchOCSPResponsesForChain(fullChain, 'google-cloud-hsm');
+      const validOcspResponses = ocspResponses.filter((resp): resp is Buffer => resp !== null);
+
+      if (validOcspResponses.length > 0) {
+        // Add DSS to PDF before signing
+        pdfToSign = await addDSSBeforeSigning({
+          pdf: pdfToSign,
+          certificateChain: certChainDer,
+          ocspResponses: validOcspResponses,
+          moduleName: 'google-cloud-hsm',
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to add LTV before signing, continuing without LTV:', error);
+    }
+  }
+
+  // STEP 4: Prepare PDF with signing placeholder
+  const { pdf: pdfWithPlaceholder, byteRange } = updateSigningPlaceholder({
+    pdf: await addSigningPlaceholder({
+      pdf: pdfToSign, // Use the (possibly DSS-enhanced) PDF
+      certificationLevel: effectiveCertificationLevel,
+    }),
   });
 
-  return ltvEnabledPdf;
+  const pdfWithoutSignature = Buffer.concat([
+    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
+    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
+  ]);
+
+  const signatureLength = byteRange[2] - byteRange[1];
+
+  // STEP 5: Sign the PDF
+  const timestampServerUrl = env('NEXT_PRIVATE_SIGNING_TIMESTAMP_SERVER_URL');
+
+  const signature = signWithGCloud({
+    keyPath,
+    cert,
+    content: pdfWithoutSignature,
+    timestampServer: timestampServerUrl,
+  });
+
+  const signatureAsHex = signature.toString('hex');
+
+  const signedPdf = Buffer.concat([
+    new Uint8Array(pdfWithPlaceholder.subarray(0, byteRange[1])),
+    new Uint8Array(Buffer.from(`<${signatureAsHex.padEnd(signatureLength - 2, '0')}>`)),
+    new Uint8Array(pdfWithPlaceholder.subarray(byteRange[2])),
+  ]);
+
+  // Return signed PDF (LTV was already added before signing)
+  return signedPdf;
 };
