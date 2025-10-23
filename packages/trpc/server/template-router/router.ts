@@ -551,7 +551,7 @@ export const templateRouter = router({
   uploadBulkSend: authenticatedProcedure
     .input(ZBulkSendTemplateMutationSchema)
     .mutation(async ({ ctx, input }) => {
-      const { templateId, teamId, csv, sendImmediately } = input;
+      const { templateId, teamId, csv, sendImmediately, folderId } = input;
       const { user } = ctx;
 
       ctx.logger.info({
@@ -588,6 +588,7 @@ export const templateRouter = router({
           templateId,
           csvContent: csv,
           sendImmediately,
+          folderId,
           requestMetadata: ctx.metadata.requestMetadata,
         },
       });

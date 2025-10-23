@@ -36,7 +36,8 @@ export const run = async ({
   payload: TBulkSendTemplateJobDefinition;
   io: JobRunIO;
 }) => {
-  const { userId, teamId, templateId, csvContent, sendImmediately, requestMetadata } = payload;
+  const { userId, teamId, templateId, csvContent, sendImmediately, folderId, requestMetadata } =
+    payload;
 
   const template = await getTemplateById({
     id: templateId,
@@ -118,6 +119,7 @@ export const run = async ({
           externalId,
           userId,
           teamId,
+          folderId,
           recipients: recipients.map((recipient, index) => {
             return {
               id: recipient.id,

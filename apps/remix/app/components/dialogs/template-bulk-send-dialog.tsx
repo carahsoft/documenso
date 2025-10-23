@@ -1,11 +1,14 @@
+import { useState } from 'react';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { File as FileIcon, Upload, X } from 'lucide-react';
+import { File as FileIcon, FolderIcon, HomeIcon, Loader2, Search, Upload, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { FolderType } from '@documenso/lib/types/folder-type';
 import { trpc } from '@documenso/trpc/react';
 import { Button } from '@documenso/ui/primitives/button';
 import { Checkbox } from '@documenso/ui/primitives/checkbox';
@@ -19,7 +22,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@documenso/ui/primitives/dialog';
-import { Form, FormControl, FormField, FormItem } from '@documenso/ui/primitives/form/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from '@documenso/ui/primitives/form/form';
+import { Input } from '@documenso/ui/primitives/input';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useCurrentTeam } from '~/providers/team';
@@ -27,6 +37,7 @@ import { useCurrentTeam } from '~/providers/team';
 const ZBulkSendFormSchema = z.object({
   file: z.instanceof(File),
   sendImmediately: z.boolean().default(false),
+  folderId: z.string().nullable().optional(),
 });
 
 type TBulkSendFormSchema = z.infer<typeof ZBulkSendFormSchema>;
@@ -48,12 +59,18 @@ export const TemplateBulkSendDialog = ({
   const { toast } = useToast();
 
   const team = useCurrentTeam();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const form = useForm<TBulkSendFormSchema>({
     resolver: zodResolver(ZBulkSendFormSchema),
     defaultValues: {
       sendImmediately: false,
+      folderId: null,
     },
+  });
+
+  const { data: folders, isLoading: isFoldersLoading } = trpc.folder.findFolders.useQuery({
+    type: FolderType.DOCUMENT,
   });
 
   const { mutateAsync: uploadBulkSend } = trpc.template.uploadBulkSend.useMutation();
@@ -95,6 +112,7 @@ export const TemplateBulkSendDialog = ({
         teamId: team?.id,
         csv: csv,
         sendImmediately: values.sendImmediately,
+        folderId: values.folderId ?? undefined,
       });
 
       toast({
@@ -116,6 +134,10 @@ export const TemplateBulkSendDialog = ({
       });
     }
   };
+
+  const filteredFolders = folders?.data.filter((folder) =>
+    folder.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   return (
     <Dialog>
@@ -237,6 +259,69 @@ export const TemplateBulkSendDialog = ({
                       defaults.
                     </Trans>
                   </p>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="folderId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    <Trans>Destination Folder (Optional)</Trans>
+                  </FormLabel>
+
+                  <div className="relative mb-2">
+                    <Search className="text-muted-foreground absolute left-2 top-3 h-4 w-4" />
+                    <Input
+                      placeholder={_(msg`Search folders...`)}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+
+                  <FormControl>
+                    <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-2">
+                      {isFoldersLoading ? (
+                        <div className="flex h-10 items-center justify-center">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant={field.value === null ? 'default' : 'outline'}
+                            className="w-full justify-start"
+                            onClick={() => field.onChange(null)}
+                          >
+                            <HomeIcon className="mr-2 h-4 w-4" />
+                            <Trans>Home (No Folder)</Trans>
+                          </Button>
+
+                          {filteredFolders?.map((folder) => (
+                            <Button
+                              key={folder.id}
+                              type="button"
+                              variant={field.value === folder.id ? 'default' : 'outline'}
+                              className="w-full justify-start"
+                              onClick={() => field.onChange(folder.id)}
+                            >
+                              <FolderIcon className="mr-2 h-4 w-4" />
+                              {folder.name}
+                            </Button>
+                          ))}
+
+                          {searchTerm && filteredFolders?.length === 0 && (
+                            <div className="text-muted-foreground px-2 py-2 text-center text-sm">
+                              <Trans>No folders found</Trans>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </FormControl>
                 </FormItem>
               )}
             />

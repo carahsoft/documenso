@@ -237,6 +237,7 @@ export const ZBulkSendTemplateMutationSchema = z.object({
   teamId: z.number(),
   csv: z.string().min(1),
   sendImmediately: z.boolean(),
+  folderId: z.string().optional(),
 });
 
 export type TCreateTemplateMutationSchema = z.infer<typeof ZCreateTemplateMutationSchema>;

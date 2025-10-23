@@ -11,6 +11,7 @@ const BULK_SEND_TEMPLATE_JOB_DEFINITION_SCHEMA = z.object({
   templateId: z.number(),
   csvContent: z.string(),
   sendImmediately: z.boolean(),
+  folderId: z.string().optional(),
   requestMetadata: ZRequestMetadataSchema.optional(),
 });
 
