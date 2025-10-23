@@ -113,42 +113,7 @@ export function addDSSManually(
 
     logger.info({ module: moduleName, ocspCount: ocspObjNums.length }, 'Wrote OCSP streams');
 
-    // TEMPORARILY SKIP VRI to test if it's causing signature invalidation
-    // Write VRI dictionary (if we have a signature hash)
-    // DISABLED FOR TESTING
-    // let vriObjNum: number | null = null;
-    // if (signatureHash && certObjNums.length > 0 && ocspObjNums.length > 0) {
-    //   vriObjNum = nextObjNum++;
-    //   xrefEntries.set(vriObjNum, currentOffset);
-
-    //   const vriEntryObjNum = nextObjNum++;
-
-    //   // VRI entry for this signature
-    //   const certRefs = certObjNums.map((n) => `${n} 0 R`).join(' ');
-    //   const ocspRefs = ocspObjNums.map((n) => `${n} 0 R`).join(' ');
-    //   const now = new Date();
-    //   const timestamp = `D:${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}${String(now.getUTCSeconds()).padStart(2, '0')}+00'00'`;
-
-    //   const vriEntryContent = `${vriEntryObjNum} 0 obj\n<<\n/Cert [ ${certRefs} ]\n/OCSP [ ${ocspRefs} ]\n/TU (${timestamp})\n>>\nendobj\n`;
-    //   xrefEntries.set(vriEntryObjNum, currentOffset);
-
-    //   const vriContent = `${vriObjNum} 0 obj\n<<\n/${signatureHash} ${vriEntryObjNum} 0 R\n>>\nendobj\n`;
-
-    //   // Write VRI entry first, then VRI dict
-    //   const vriEntryBuf = Buffer.from(vriEntryContent, 'latin1');
-    //   chunks.push(vriEntryBuf);
-    //   currentOffset += vriEntryBuf.length;
-
-    //   const vriBuf = Buffer.from(vriContent, 'latin1');
-    //   chunks.push(vriBuf);
-    //   currentOffset += vriBuf.length;
-
-    //   logger.info({ module: moduleName, signatureHash }, 'Wrote VRI dictionary');
-    // }
-
-    logger.info({ module: moduleName }, 'SKIPPING VRI for diagnostic testing');
-
-    // Write DSS dictionary (without VRI for now)
+    // Write DSS dictionary
     const dssObjNum = nextObjNum++;
     xrefEntries.set(dssObjNum, currentOffset);
 
@@ -161,10 +126,6 @@ export function addDSSManually(
     if (ocspObjNums.length > 0) {
       dssContent += `/OCSPs [ ${ocspRefs} ]\n`;
     }
-    // VRI DISABLED FOR TESTING
-    // if (vriObjNum) {
-    //   dssContent += `/VRI ${vriObjNum} 0 R\n`;
-    // }
     dssContent += `>>\nendobj\n`;
 
     const dssBuf = Buffer.from(dssContent, 'latin1');
