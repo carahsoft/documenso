@@ -137,9 +137,36 @@ export function TemplateMoveToFolderDialog({
     }
   };
 
-  const filteredFolders = folders?.data?.filter((folder) =>
-    folder.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // Build a map of folder ID to folder object for parent lookup
+  const folderMap = new Map<string, NonNullable<typeof folders>['data'][number]>();
+  folders?.data?.forEach((folder) => {
+    folderMap.set(folder.id, folder);
+  });
+
+  const getParentFolderPath = (
+    folder: NonNullable<typeof folders>['data'][number],
+  ): string | null => {
+    if (!folder.parentId) {
+      return null;
+    }
+
+    const path: string[] = [];
+    let currentId: string | null = folder.parentId;
+
+    while (currentId && folderMap.has(currentId)) {
+      const parentFolder: NonNullable<typeof folders>['data'][number] | undefined =
+        folderMap.get(currentId);
+      if (!parentFolder) break;
+      path.unshift(parentFolder.name);
+      currentId = parentFolder.parentId;
+    }
+
+    return path.length > 0 ? path.join(' / ') : null;
+  };
+
+  const filteredFolders = folders?.data
+    ?.filter((folder) => folder.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Dialog {...props} open={isOpen} onOpenChange={onOpenChange}>
@@ -194,19 +221,27 @@ export function TemplateMoveToFolderDialog({
                             <Trans>Home (No Folder)</Trans>
                           </Button>
 
-                          {filteredFolders?.map((folder) => (
-                            <Button
-                              key={folder.id}
-                              type="button"
-                              variant={field.value === folder.id ? 'default' : 'outline'}
-                              className="w-full justify-start"
-                              onClick={() => field.onChange(folder.id)}
-                              disabled={currentFolderId === folder.id}
-                            >
-                              <FolderIcon className="mr-2 h-4 w-4" />
-                              {folder.name}
-                            </Button>
-                          ))}
+                          {filteredFolders?.map((folder) => {
+                            const parentPath = getParentFolderPath(folder);
+                            return (
+                              <Button
+                                key={folder.id}
+                                type="button"
+                                variant={field.value === folder.id ? 'default' : 'outline'}
+                                className="w-full justify-start"
+                                onClick={() => field.onChange(folder.id)}
+                                disabled={currentFolderId === folder.id}
+                              >
+                                <FolderIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                <span className="flex-1 truncate text-left">{folder.name}</span>
+                                {parentPath && (
+                                  <span className="text-muted-foreground ml-2 truncate text-xs">
+                                    {parentPath}
+                                  </span>
+                                )}
+                              </Button>
+                            );
+                          })}
 
                           {searchTerm && filteredFolders?.length === 0 && (
                             <div className="text-muted-foreground px-2 py-2 text-center text-sm">

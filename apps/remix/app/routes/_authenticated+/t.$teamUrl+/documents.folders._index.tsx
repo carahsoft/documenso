@@ -105,6 +105,7 @@ export default function DocumentsFoldersPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {foldersData.folders
                   .filter((folder) => folder.pinned && isFolderMatchingSearch(folder))
+                  .sort((a, b) => a.name.localeCompare(b.name))
                   .map((folder) => (
                     <FolderCard
                       key={folder.id}
@@ -138,7 +139,8 @@ export default function DocumentsFoldersPage() {
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {foldersData?.folders
-                .filter((folder) => !folder.pinned)
+                .filter((folder) => !folder.pinned && isFolderMatchingSearch(folder))
+                .sort((a, b) => a.name.localeCompare(b.name))
                 .map((folder) => (
                   <FolderCard
                     key={folder.id}

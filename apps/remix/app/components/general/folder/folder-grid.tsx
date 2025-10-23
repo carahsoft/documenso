@@ -62,8 +62,14 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
       : formatTemplatesPath(team.url);
   };
 
-  const pinnedFolders = foldersData?.folders.filter((folder) => folder.pinned) || [];
-  const unpinnedFolders = foldersData?.folders.filter((folder) => !folder.pinned) || [];
+  const pinnedFolders =
+    foldersData?.folders
+      .filter((folder) => folder.pinned)
+      .sort((a, b) => a.name.localeCompare(b.name)) || [];
+  const unpinnedFolders =
+    foldersData?.folders
+      .filter((folder) => !folder.pinned)
+      .sort((a, b) => a.name.localeCompare(b.name)) || [];
 
   return (
     <div>

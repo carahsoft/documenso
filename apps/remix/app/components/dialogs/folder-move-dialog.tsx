@@ -104,13 +104,40 @@ export const FolderMoveDialog = ({
     }
   }, [isOpen, form]);
 
+  // Build a map of folder ID to folder object for parent lookup
+  const folderMap = new Map<string, NonNullable<typeof foldersData>[number]>();
+  foldersData?.forEach((f) => {
+    folderMap.set(f.id, f);
+  });
+
+  const getParentFolderPath = (f: NonNullable<typeof foldersData>[number]): string | null => {
+    if (!f.parentId) {
+      return null;
+    }
+
+    const path: string[] = [];
+    let currentId: string | null = f.parentId;
+
+    while (currentId && folderMap.has(currentId)) {
+      const parentFolder: NonNullable<typeof foldersData>[number] | undefined =
+        folderMap.get(currentId);
+      if (!parentFolder) break;
+      path.unshift(parentFolder.name);
+      currentId = parentFolder.parentId;
+    }
+
+    return path.length > 0 ? path.join(' / ') : null;
+  };
+
   // Filter out the current folder, only show folders of the same type, and filter by search term
-  const filteredFolders = foldersData?.filter(
-    (f) =>
-      f.id !== folder?.id &&
-      f.type === folder?.type &&
-      (searchTerm === '' || f.name.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+  const filteredFolders = foldersData
+    ?.filter(
+      (f) =>
+        f.id !== folder?.id &&
+        f.type === folder?.type &&
+        (searchTerm === '' || f.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -156,19 +183,27 @@ export const FolderMoveDialog = ({
                         </Button>
 
                         {filteredFolders &&
-                          filteredFolders.map((f) => (
-                            <Button
-                              key={f.id}
-                              type="button"
-                              disabled={f.id === folder?.parentId}
-                              variant={field.value === f.id ? 'default' : 'outline'}
-                              className="w-full justify-start"
-                              onClick={() => field.onChange(f.id)}
-                            >
-                              <FolderIcon className="mr-2 h-4 w-4" />
-                              {f.name}
-                            </Button>
-                          ))}
+                          filteredFolders.map((f) => {
+                            const parentPath = getParentFolderPath(f);
+                            return (
+                              <Button
+                                key={f.id}
+                                type="button"
+                                disabled={f.id === folder?.parentId}
+                                variant={field.value === f.id ? 'default' : 'outline'}
+                                className="w-full justify-start"
+                                onClick={() => field.onChange(f.id)}
+                              >
+                                <FolderIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                <span className="flex-1 truncate text-left">{f.name}</span>
+                                {parentPath && (
+                                  <span className="text-muted-foreground ml-2 truncate text-xs">
+                                    {parentPath}
+                                  </span>
+                                )}
+                              </Button>
+                            );
+                          })}
                       </div>
                     </FormControl>
                     <FormMessage />
