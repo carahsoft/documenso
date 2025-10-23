@@ -6,7 +6,7 @@ import { signWithGCloud } from '@documenso/pdf-sign';
 import { addDSSBeforeSigning } from '../helpers/add-dss-before-signing';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
 import { fetchOCSPResponsesForChain } from '../helpers/ocsp';
-import { parseCertificate } from '../helpers/pkcs7';
+import { convertCertToDer } from '../helpers/pkcs7';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
 export type SignWithGoogleCloudHSMOptions = {
@@ -104,8 +104,8 @@ export const signWithGoogleCloudHSM = async ({
   if (enableLTV && certChain && certChain.length > 0) {
     try {
       // Convert PEM certs to DER for OCSP
-      const signingCertDer = parseCertificate(signingCert);
-      const certChainDer = certChain.map((pemCert) => parseCertificate(pemCert));
+      const signingCertDer = convertCertToDer(signingCert);
+      const certChainDer = certChain.map((pemCert) => convertCertToDer(pemCert));
 
       // Build full chain for OCSP
       const fullChain = [signingCertDer, ...certChainDer];

@@ -27,6 +27,30 @@ export function parseCertificate(certificate: Buffer): forge.pki.Certificate {
 }
 
 /**
+ * Convert certificate from PEM or DER format to DER Buffer
+ *
+ * This is useful for OCSP operations which require DER-encoded certificates.
+ *
+ * @param certificate - Certificate in DER or PEM format as Buffer
+ * @returns Certificate in DER format as Buffer
+ * @throws Error if certificate cannot be parsed
+ */
+export function convertCertToDer(certificate: Buffer): Buffer {
+  // First check if it's already in DER format
+  try {
+    // Try to parse as DER - if successful, return as-is
+    forge.asn1.fromDer(forge.util.createBuffer(certificate));
+    return certificate;
+  } catch {
+    // Not DER, must be PEM - convert it
+    const cert = parseCertificate(certificate);
+    const asn1Cert = forge.pki.certificateToAsn1(cert);
+    const der = forge.asn1.toDer(asn1Cert).getBytes();
+    return Buffer.from(der, 'binary');
+  }
+}
+
+/**
  * Build authenticated attributes for PKCS#7 signature
  *
  * Authenticated attributes include contentType and messageDigest.
