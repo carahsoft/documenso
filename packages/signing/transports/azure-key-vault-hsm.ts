@@ -300,7 +300,14 @@ export const signWithAzureKeyVaultHSM = async ({
 
   const signatureLength = byteRange[2] - byteRange[1];
 
-  logger.info({ module: 'azure-key-vault-hsm', signatureLength }, 'PDF prepared with placeholder');
+  logger.info(
+    {
+      module: 'azure-key-vault-hsm',
+      signatureLength,
+      certificationLevel: effectiveCertificationLevel,
+    },
+    'PDF prepared with placeholder',
+  );
 
   // STEP 4: Create cryptography client for signing
   logger.info({ module: 'azure-key-vault-hsm', keyName }, 'Creating cryptography client');

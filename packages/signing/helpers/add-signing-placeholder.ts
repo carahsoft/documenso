@@ -70,19 +70,26 @@ export const addSigningPlaceholder = async ({
   // Add DocMDP reference for certification signatures
   if (certificationLevel && certificationLevel > 0) {
     // Create DocMDP transform parameters for certification signature
-    const transformParams = doc.context.obj({
-      Type: 'TransformParams',
-      V: '1.2',
-      P: certificationLevel, // Permission level: 1 = no changes, 2 = form fill, 3 = annotations/form fill
-    });
+    const transformParams = doc.context.register(
+      doc.context.obj({
+        Type: 'TransformParams',
+        V: '1.2',
+        P: certificationLevel, // Permission level: 1 = no changes, 2 = form fill, 3 = annotations/form fill
+      }),
+    );
 
     // Create signature reference with DocMDP
-    const sigReference = doc.context.obj({
-      Type: 'SigRef',
-      TransformMethod: 'DocMDP',
-      DigestMethod: 'SHA256',
-      TransformParams: transformParams,
-    });
+    // According to ISO 32000-1, the /Data key should reference what's being protected.
+    // For DocMDP, omitting /Data means the entire document is protected (default behavior).
+    // However, some readers may require an explicit catalog reference.
+    const sigReference = doc.context.register(
+      doc.context.obj({
+        Type: 'SigRef',
+        TransformMethod: 'DocMDP',
+        DigestMethod: 'SHA256',
+        TransformParams: transformParams,
+      }),
+    );
 
     const referenceArray = PDFArray.withContext(doc.context);
     referenceArray.push(sigReference);
