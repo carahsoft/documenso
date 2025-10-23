@@ -27,6 +27,8 @@ const ZRecipientRowSchema = z.object({
   ]),
 });
 
+const ZExternalIdSchema = z.union([z.string().min(1).optional(), z.string().max(0).optional()]);
+
 export const run = async ({
   payload,
   io,
@@ -99,9 +101,21 @@ export const run = async ({
         }
       }
 
+      // Validate external_id if provided
+      const externalIdParsed = ZExternalIdSchema.safeParse(row['external_id']);
+      if (!externalIdParsed.success) {
+        throw new Error(
+          `Invalid external_id provided: ${externalIdParsed.error.issues?.[0]?.message}`,
+        );
+      }
+
+      const externalId =
+        row['external_id'] && row['external_id'].trim() !== '' ? row['external_id'].trim() : null;
+
       const document = await io.runTask(`create-document-${rowIndex}`, async () => {
         return await createDocumentFromTemplate({
           templateId: template.id,
+          externalId,
           userId,
           teamId,
           recipients: recipients.map((recipient, index) => {

@@ -59,12 +59,18 @@ export const TemplateBulkSendDialog = ({
   const { mutateAsync: uploadBulkSend } = trpc.template.uploadBulkSend.useMutation();
 
   const onDownloadTemplate = () => {
-    const headers = recipients.flatMap((_, index) => [
-      `recipient_${index + 1}_email`,
-      `recipient_${index + 1}_name`,
-    ]);
+    const headers = [
+      'external_id',
+      ...recipients.flatMap((_, index) => [
+        `recipient_${index + 1}_email`,
+        `recipient_${index + 1}_name`,
+      ]),
+    ];
 
-    const exampleRow = recipients.flatMap((recipient) => [recipient.email, recipient.name || '']);
+    const exampleRow = [
+      '',
+      ...recipients.flatMap((recipient) => [recipient.email, recipient.name || '']),
+    ];
 
     const csv = [headers.join(','), exampleRow.join(',')].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -146,7 +152,8 @@ export const TemplateBulkSendDialog = ({
               <p className="text-muted-foreground mt-1 text-sm">
                 <Trans>
                   For each recipient, provide their email (required) and name (optional) in separate
-                  columns. Download the template CSV below for the correct format.
+                  columns. You can also optionally specify an external_id for each document.
+                  Download the template CSV below for the correct format.
                 </Trans>
               </p>
 
@@ -225,8 +232,9 @@ export const TemplateBulkSendDialog = ({
 
                   <p className="text-muted-foreground text-xs">
                     <Trans>
-                      Maximum file size: 4MB. Maximum 100 rows per upload. Blank values will use
-                      template defaults.
+                      Maximum file size: 4MB. Maximum 100 rows per upload. The external_id column is
+                      optional and can be left blank. Blank recipient values will use template
+                      defaults.
                     </Trans>
                   </p>
                 </FormItem>
