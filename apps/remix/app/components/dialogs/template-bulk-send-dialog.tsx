@@ -177,7 +177,7 @@ export const TemplateBulkSendDialog = ({
         )}
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col sm:max-w-[540px]">
         <DialogHeader>
           <DialogTitle>
             <Trans>Bulk Send Template via CSV</Trans>
@@ -192,201 +192,206 @@ export const TemplateBulkSendDialog = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-y-4">
-            <div className="bg-muted/70 rounded-lg border p-4">
-              <h3 className="text-sm font-medium">
-                <Trans>CSV Structure</Trans>
-              </h3>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-y-4 overflow-hidden"
+          >
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+              <div className="bg-muted/70 rounded-lg border p-4">
+                <h3 className="text-sm font-medium">
+                  <Trans>CSV Structure</Trans>
+                </h3>
 
-              <p className="text-muted-foreground mt-1 text-sm">
-                <Trans>
-                  For each recipient, provide their email (required) and name (optional) in separate
-                  columns. You can also optionally specify an external_id for each document.
-                  Download the template CSV below for the correct format.
-                </Trans>
-              </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  <Trans>
+                    For each recipient, provide their email (required) and name (optional) in
+                    separate columns. You can also optionally specify an external_id for each
+                    document. Download the template CSV below for the correct format.
+                  </Trans>
+                </p>
 
-              <p className="mt-4 text-sm">
-                <Trans>Current recipients:</Trans>
-              </p>
+                <p className="mt-4 text-sm">
+                  <Trans>Current recipients:</Trans>
+                </p>
 
-              <ul className="text-muted-foreground mt-2 list-inside list-disc text-sm">
-                {recipients.map((recipient, index) => (
-                  <li key={index}>
-                    {recipient.name ? `${recipient.name} (${recipient.email})` : recipient.email}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                <ul className="text-muted-foreground mt-2 max-h-32 list-inside list-disc overflow-y-auto text-sm">
+                  {recipients.map((recipient, index) => (
+                    <li key={index}>
+                      {recipient.name ? `${recipient.name} (${recipient.email})` : recipient.email}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            <div className="flex flex-col gap-y-2">
-              <Button onClick={onDownloadTemplate} variant="outline" type="button">
-                <Trans>Download Template CSV</Trans>
-              </Button>
+              <div className="flex flex-col gap-y-2">
+                <Button onClick={onDownloadTemplate} variant="outline" type="button">
+                  <Trans>Download Template CSV</Trans>
+                </Button>
 
-              <p className="text-muted-foreground text-xs">
-                <Trans>Pre-formatted CSV template with example data.</Trans>
-              </p>
-            </div>
+                <p className="text-muted-foreground text-xs">
+                  <Trans>Pre-formatted CSV template with example data.</Trans>
+                </p>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="file"
-              render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <FormItem>
-                  <FormControl>
-                    {!value ? (
-                      <Button asChild variant="outline" className="w-full">
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept=".csv"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                onChange(file);
-                              }
-                            }}
-                            disabled={form.formState.isSubmitting}
-                          />
-                          <Upload className="mr-2 h-4 w-4" />
-                          <Trans>Upload CSV</Trans>
-                        </label>
-                      </Button>
-                    ) : (
-                      <div className="flex h-10 items-center rounded-md border px-3">
-                        <div className="flex flex-1 items-center gap-2">
-                          <FileIcon className="text-muted-foreground h-4 w-4" />
-                          <span className="flex-1 truncate text-sm">{value.name}</span>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="text-destructive hover:text-destructive p-0 text-xs"
-                          onClick={() => onChange(null)}
-                          disabled={form.formState.isSubmitting}
-                        >
-                          <X className="h-4 w-4" />
-                          <span className="sr-only">
-                            <Trans>Remove</Trans>
-                          </span>
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
+                  <FormItem>
+                    <FormControl>
+                      {!value ? (
+                        <Button asChild variant="outline" className="w-full">
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".csv"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  onChange(file);
+                                }
+                              }}
+                              disabled={form.formState.isSubmitting}
+                            />
+                            <Upload className="mr-2 h-4 w-4" />
+                            <Trans>Upload CSV</Trans>
+                          </label>
                         </Button>
-                      </div>
-                    )}
-                  </FormControl>
-
-                  {error && <p className="text-destructive text-sm">{error.message}</p>}
-
-                  <p className="text-muted-foreground text-xs">
-                    <Trans>
-                      Maximum file size: 4MB. Maximum 100 rows per upload. The external_id column is
-                      optional and can be left blank. Blank recipient values will use template
-                      defaults.
-                    </Trans>
-                  </p>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="folderId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    <Trans>Destination Folder (Optional)</Trans>
-                  </FormLabel>
-
-                  <div className="relative mb-2">
-                    <Search className="text-muted-foreground absolute left-2 top-3 h-4 w-4" />
-                    <Input
-                      placeholder={_(msg`Search folders...`)}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
-
-                  <FormControl>
-                    <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-2">
-                      {isFoldersLoading ? (
-                        <div className="flex h-10 items-center justify-center">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
                       ) : (
-                        <>
+                        <div className="flex h-10 items-center rounded-md border px-3">
+                          <div className="flex flex-1 items-center gap-2">
+                            <FileIcon className="text-muted-foreground h-4 w-4" />
+                            <span className="flex-1 truncate text-sm">{value.name}</span>
+                          </div>
+
                           <Button
                             type="button"
-                            variant={field.value === null ? 'default' : 'outline'}
-                            className="w-full justify-start"
-                            onClick={() => field.onChange(null)}
+                            variant="link"
+                            className="text-destructive hover:text-destructive p-0 text-xs"
+                            onClick={() => onChange(null)}
+                            disabled={form.formState.isSubmitting}
                           >
-                            <HomeIcon className="mr-2 h-4 w-4" />
-                            <Trans>Home (No Folder)</Trans>
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">
+                              <Trans>Remove</Trans>
+                            </span>
                           </Button>
-
-                          {filteredFolders?.map((folder) => {
-                            const parentPath = getParentFolderPath(folder);
-                            return (
-                              <Button
-                                key={folder.id}
-                                type="button"
-                                variant={field.value === folder.id ? 'default' : 'outline'}
-                                className="w-full justify-start"
-                                onClick={() => field.onChange(folder.id)}
-                              >
-                                <FolderIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                                <span className="flex-1 truncate text-left">{folder.name}</span>
-                                {parentPath && (
-                                  <span className="text-muted-foreground ml-2 truncate text-xs">
-                                    {parentPath}
-                                  </span>
-                                )}
-                              </Button>
-                            );
-                          })}
-
-                          {searchTerm && filteredFolders?.length === 0 && (
-                            <div className="text-muted-foreground px-2 py-2 text-center text-sm">
-                              <Trans>No folders found</Trans>
-                            </div>
-                          )}
-                        </>
+                        </div>
                       )}
-                    </div>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                    </FormControl>
 
-            <FormField
-              control={form.control}
-              name="sendImmediately"
-              render={({ field }) => (
-                <FormItem className="flex items-center space-x-2">
-                  <FormControl>
-                    <div className="flex items-center">
-                      <Checkbox
-                        id="send-immediately"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                    {error && <p className="text-destructive text-sm">{error.message}</p>}
+
+                    <p className="text-muted-foreground text-xs">
+                      <Trans>
+                        Maximum file size: 4MB. Maximum 100 rows per upload. The external_id column
+                        is optional and can be left blank. Blank recipient values will use template
+                        defaults.
+                      </Trans>
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="folderId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      <Trans>Destination Folder (Optional)</Trans>
+                    </FormLabel>
+
+                    <div className="relative mb-2">
+                      <Search className="text-muted-foreground absolute left-2 top-3 h-4 w-4" />
+                      <Input
+                        placeholder={_(msg`Search folders...`)}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
                       />
-
-                      <label
-                        htmlFor="send-immediately"
-                        className="text-muted-foreground ml-2 flex items-center text-sm"
-                      >
-                        <Trans>Send documents to recipients immediately</Trans>
-                      </label>
                     </div>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
 
-            <DialogFooter className="mt-4">
+                    <FormControl>
+                      <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
+                        {isFoldersLoading ? (
+                          <div className="flex h-10 items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              variant={field.value === null ? 'default' : 'outline'}
+                              className="w-full justify-start"
+                              onClick={() => field.onChange(null)}
+                            >
+                              <HomeIcon className="mr-2 h-4 w-4" />
+                              <Trans>Home (No Folder)</Trans>
+                            </Button>
+
+                            {filteredFolders?.map((folder) => {
+                              const parentPath = getParentFolderPath(folder);
+                              return (
+                                <Button
+                                  key={folder.id}
+                                  type="button"
+                                  variant={field.value === folder.id ? 'default' : 'outline'}
+                                  className="w-full justify-start"
+                                  onClick={() => field.onChange(folder.id)}
+                                >
+                                  <FolderIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                  <span className="flex-1 truncate text-left">{folder.name}</span>
+                                  {parentPath && (
+                                    <span className="text-muted-foreground ml-2 truncate text-xs">
+                                      {parentPath}
+                                    </span>
+                                  )}
+                                </Button>
+                              );
+                            })}
+
+                            {searchTerm && filteredFolders?.length === 0 && (
+                              <div className="text-muted-foreground px-2 py-2 text-center text-sm">
+                                <Trans>No folders found</Trans>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sendImmediately"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <div className="flex items-center">
+                        <Checkbox
+                          id="send-immediately"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+
+                        <label
+                          htmlFor="send-immediately"
+                          className="text-muted-foreground ml-2 flex items-center text-sm"
+                        >
+                          <Trans>Send documents to recipients immediately</Trans>
+                        </label>
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <DialogFooter className="mt-4 flex-shrink-0">
               <DialogClose asChild>
                 <Button variant="secondary" onClick={() => form.reset()} type="button">
                   <Trans>Cancel</Trans>
