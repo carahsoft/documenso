@@ -24,6 +24,7 @@ import { downloadPDF } from '@documenso/lib/client-only/download-pdf';
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import type { TDocumentMany as TDocumentRow } from '@documenso/lib/types/document';
 import { isDocumentCompleted } from '@documenso/lib/utils/document';
+import { env } from '@documenso/lib/utils/env';
 import { formatDocumentsPath } from '@documenso/lib/utils/teams';
 import { trpc as trpcClient } from '@documenso/trpc/client';
 import { DocumentShareButton } from '@documenso/ui/components/document/document-share-button';
@@ -226,18 +227,24 @@ export const DocumentsTableActionDropdown = ({
 
         <DocumentResendDialog document={row} recipients={nonSignedRecipients} />
 
-        <DocumentShareButton
-          documentId={row.id}
-          token={isOwner ? undefined : recipient?.token}
-          trigger={({ loading, disabled }) => (
-            <DropdownMenuItem disabled={disabled || isDraft} onSelect={(e) => e.preventDefault()}>
-              <div className="flex items-center">
-                {loading ? <Loader className="mr-2 h-4 w-4" /> : <Share className="mr-2 h-4 w-4" />}
-                <Trans>Share Signing Card</Trans>
-              </div>
-            </DropdownMenuItem>
-          )}
-        />
+        {env('NEXT_PUBLIC_HIDE_SIGNING_CARD') !== 'true' && (
+          <DocumentShareButton
+            documentId={row.id}
+            token={isOwner ? undefined : recipient?.token}
+            trigger={({ loading, disabled }) => (
+              <DropdownMenuItem disabled={disabled || isDraft} onSelect={(e) => e.preventDefault()}>
+                <div className="flex items-center">
+                  {loading ? (
+                    <Loader className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Share className="mr-2 h-4 w-4" />
+                  )}
+                  <Trans>Share Signing Card</Trans>
+                </div>
+              </DropdownMenuItem>
+            )}
+          />
+        )}
       </DropdownMenuContent>
 
       <DocumentDeleteDialog

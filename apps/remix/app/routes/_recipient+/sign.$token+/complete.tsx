@@ -204,7 +204,9 @@ export default function CompletedSigningPage({ loaderData }: Route.ComponentProp
             ))}
 
           <div className="mt-8 flex w-full max-w-sm items-center justify-center gap-4">
-            <DocumentShareButton documentId={document.id} token={recipient.token} />
+            {env('NEXT_PUBLIC_HIDE_SIGNING_CARD') !== 'true' && (
+              <DocumentShareButton documentId={document.id} token={recipient.token} />
+            )}
 
             {isDocumentCompleted(document.status) ? (
               <DocumentDownloadButton
