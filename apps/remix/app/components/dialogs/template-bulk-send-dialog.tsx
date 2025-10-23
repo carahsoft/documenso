@@ -60,6 +60,7 @@ export const TemplateBulkSendDialog = ({
 
   const team = useCurrentTeam();
   const [searchTerm, setSearchTerm] = useState('');
+  const [open, setOpen] = useState(false);
 
   const form = useForm<TBulkSendFormSchema>({
     resolver: zodResolver(ZBulkSendFormSchema),
@@ -123,6 +124,7 @@ export const TemplateBulkSendDialog = ({
       });
 
       form.reset();
+      setOpen(false);
       onSuccess?.();
     } catch (err) {
       console.error(err);
@@ -167,7 +169,7 @@ export const TemplateBulkSendDialog = ({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button variant="outline">
