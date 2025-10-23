@@ -28,10 +28,10 @@ export const signWithGoogleCloudHSM = async ({
   const keyPath = env('NEXT_PRIVATE_SIGNING_GCLOUD_HSM_KEY_PATH');
 
   // Get certification level from environment variable if not provided
-  // Default to level 2 to allow LTV (DSS) incremental updates
+  // Default to level 0 (approval signature, no DocMDP certification)
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '0', 10) as 0 | 1 | 2 | 3);
 
   if (!keyPath) {
     throw new Error('No certificate path provided for Google Cloud HSM signing');

@@ -24,10 +24,10 @@ export type SignWithLocalCertOptions = {
 
 export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLocalCertOptions) => {
   // Get certification level from environment variable if not provided
-  // Default to level 2 to allow LTV (DSS) incremental updates
+  // Default to level 0 (approval signature, no DocMDP certification)
   const effectiveCertificationLevel =
     certificationLevel ??
-    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '2', 10) as 0 | 1 | 2 | 3);
+    (parseInt(env('NEXT_PRIVATE_SIGNING_DOCMDP_LEVEL') || '0', 10) as 0 | 1 | 2 | 3);
 
   // STEP 1: Load P12 certificate file
   const certStatus = getCertificateStatus();
