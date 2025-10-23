@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Trans } from '@lingui/react/macro';
 import { FolderType, OrganisationType } from '@prisma/client';
+import { Download } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -15,7 +16,9 @@ import { trpc } from '@documenso/trpc/react';
 import type { TFindDocumentsInternalResponse } from '@documenso/trpc/server/document-router/find-documents-internal.types';
 import { ZFindDocumentsInternalRequestSchema } from '@documenso/trpc/server/document-router/find-documents-internal.types';
 import { Avatar, AvatarFallback, AvatarImage } from '@documenso/ui/primitives/avatar';
+import { Button } from '@documenso/ui/primitives/button';
 import { Tabs, TabsList, TabsTrigger } from '@documenso/ui/primitives/tabs';
+import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { DocumentMoveToFolderDialog } from '~/components/dialogs/document-move-to-folder-dialog';
 import { DocumentDropZoneWrapper } from '~/components/general/document/document-drop-zone-wrapper';
@@ -46,12 +49,14 @@ const ZSearchParamsSchema = ZFindDocumentsInternalRequestSchema.pick({
 export default function DocumentsPage() {
   const organisation = useCurrentOrganisation();
   const team = useCurrentTeam();
+  const { toast } = useToast();
 
   const { folderId } = useParams();
   const [searchParams] = useSearchParams();
 
   const [isMovingDocument, setIsMovingDocument] = useState(false);
   const [documentToMove, setDocumentToMove] = useState<number | null>(null);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const [stats, setStats] = useState<TFindDocumentsInternalResponse['stats']>({
     [ExtendedDocumentStatus.DRAFT]: 0,
@@ -107,6 +112,61 @@ export default function DocumentsPage() {
       setStats(data.stats);
     }
   }, [data?.stats]);
+
+  const onDownloadAllClick = () => {
+    setIsDownloadingAll(true);
+
+    try {
+      toast({
+        title: 'Download started',
+        description: 'Preparing your documents for download...',
+      });
+
+      // Build query parameters
+      const params = new URLSearchParams();
+
+      if (team?.id) {
+        params.set('teamId', team.id.toString());
+      }
+
+      if (folderId) {
+        params.set('folderId', folderId);
+      }
+
+      if (findDocumentSearchParams.period) {
+        params.set('period', findDocumentSearchParams.period);
+      }
+
+      if (findDocumentSearchParams.senderIds && findDocumentSearchParams.senderIds.length > 0) {
+        params.set('senderIds', findDocumentSearchParams.senderIds.join(','));
+      }
+
+      // Trigger download
+      const url = `/api/documents/download-all?${params.toString()}`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `documents-${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: 'Download complete',
+        description: 'Your documents have been downloaded successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download documents. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
+  const isCompletedStatus = findDocumentSearchParams.status === ExtendedDocumentStatus.COMPLETED;
+  const hasCompletedDocuments = data && data.count > 0;
 
   return (
     <DocumentDropZoneWrapper>
@@ -171,6 +231,18 @@ export default function DocumentsPage() {
             <div className="flex w-48 flex-wrap items-center justify-between gap-x-2 gap-y-4">
               <DocumentSearch initialValue={findDocumentSearchParams.query} />
             </div>
+
+            {isCompletedStatus && hasCompletedDocuments && (
+              <Button
+                onClick={onDownloadAllClick}
+                disabled={isDownloadingAll}
+                loading={isDownloadingAll}
+                variant="outline"
+              >
+                <Download className="-ml-1 mr-2 h-4 w-4" />
+                <Trans>Download All</Trans>
+              </Button>
+            )}
           </div>
         </div>
 
