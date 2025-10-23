@@ -42,6 +42,7 @@ import { DocumentSigningInitialsField } from '~/components/general/document-sign
 import { DocumentSigningNameField } from '~/components/general/document-signing/document-signing-name-field';
 import { DocumentSigningNumberField } from '~/components/general/document-signing/document-signing-number-field';
 import { DocumentSigningRadioField } from '~/components/general/document-signing/document-signing-radio-field';
+import { DocumentSigningReassignDialog } from '~/components/general/document-signing/document-signing-reassign-dialog';
 import { DocumentSigningRejectDialog } from '~/components/general/document-signing/document-signing-reject-dialog';
 import { DocumentSigningSignatureField } from '~/components/general/document-signing/document-signing-signature-field';
 import { DocumentSigningTextField } from '~/components/general/document-signing/document-signing-text-field';
@@ -247,7 +248,15 @@ export const DocumentSigningPageView = ({
             </span>
           </div>
 
-          <DocumentSigningRejectDialog document={document} token={recipient.token} />
+          <div className="flex gap-2">
+            <DocumentSigningReassignDialog
+              document={document}
+              token={recipient.token}
+              currentName={recipient.name}
+              currentEmail={recipient.email}
+            />
+            <DocumentSigningRejectDialog document={document} token={recipient.token} />
+          </div>
         </div>
 
         <div className="relative mt-4 flex w-full flex-col gap-x-6 gap-y-8 sm:mt-8 md:flex-row lg:gap-x-8 lg:gap-y-0">

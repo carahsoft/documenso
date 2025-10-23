@@ -1,4 +1,5 @@
 import { completeDocumentWithToken } from '@documenso/lib/server-only/document/complete-document-with-token';
+import { reassignDocumentWithToken } from '@documenso/lib/server-only/document/reassign-document-with-token';
 import { rejectDocumentWithToken } from '@documenso/lib/server-only/document/reject-document-with-token';
 import { createDocumentRecipients } from '@documenso/lib/server-only/recipient/create-document-recipients';
 import { createTemplateRecipients } from '@documenso/lib/server-only/recipient/create-template-recipients';
@@ -27,6 +28,7 @@ import {
   ZDeleteTemplateRecipientRequestSchema,
   ZGetRecipientRequestSchema,
   ZGetRecipientResponseSchema,
+  ZReassignDocumentWithTokenMutationSchema,
   ZRejectDocumentWithTokenMutationSchema,
   ZSetDocumentRecipientsRequestSchema,
   ZSetDocumentRecipientsResponseSchema,
@@ -562,6 +564,29 @@ export const recipientRouter = router({
         token,
         documentId,
         reason,
+        requestMetadata: ctx.metadata.requestMetadata,
+      });
+    }),
+
+  /**
+   * @private
+   */
+  reassignDocumentWithToken: procedure
+    .input(ZReassignDocumentWithTokenMutationSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { token, documentId, name, email } = input;
+
+      ctx.logger.info({
+        input: {
+          documentId,
+        },
+      });
+
+      return await reassignDocumentWithToken({
+        token,
+        documentId,
+        name,
+        email,
         requestMetadata: ctx.metadata.requestMetadata,
       });
     }),

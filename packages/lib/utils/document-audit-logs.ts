@@ -476,6 +476,16 @@ export const formatDocumentAuditLogAction = (
         identified: result,
       };
     })
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_REASSIGNED }, ({ data }) => {
+      const userName = prefix || _(msg`Recipient`);
+
+      const result = msg`${userName} reassigned the document from ${data.oldEmail} to ${data.newEmail}`;
+
+      return {
+        anonymous: result,
+        identified: result,
+      };
+    })
     .with({ type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_ACCESS_AUTH_2FA_REQUESTED }, ({ data }) => {
       const userName = prefix || _(msg`Recipient`);
 

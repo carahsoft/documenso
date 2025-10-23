@@ -35,6 +35,7 @@ export const ZDocumentAuditLogTypeSchema = z.enum([
   'DOCUMENT_OPENED', // When the document is opened by a recipient.
   'DOCUMENT_VIEWED', // When the document is viewed by a recipient.
   'DOCUMENT_RECIPIENT_REJECTED', // When a recipient rejects the document.
+  'DOCUMENT_RECIPIENT_REASSIGNED', // When a recipient is reassigned to a different person.
   'DOCUMENT_RECIPIENT_COMPLETED', // When a recipient completes all their required tasks for the document.
   'DOCUMENT_SENT', // When the document transitions from DRAFT to PENDING.
   'DOCUMENT_TITLE_UPDATED', // When the document title is updated.
@@ -188,7 +189,8 @@ export const ZDocumentAuditLogEventEmailSentSchema = z.object({
   type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.EMAIL_SENT),
   data: ZBaseRecipientDataSchema.extend({
     emailType: ZDocumentAuditLogEmailTypeSchema,
-    isResending: z.boolean(),
+    isResending: z.boolean().optional(),
+    isReassignment: z.boolean().optional(),
   }),
 });
 
@@ -493,6 +495,20 @@ export const ZDocumentAuditLogEventDocumentRecipientRejectedSchema = z.object({
 });
 
 /**
+ * Event: Document recipient reassigned.
+ */
+export const ZDocumentAuditLogEventDocumentRecipientReassignedSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_REASSIGNED),
+  data: z.object({
+    recipientId: z.number(),
+    oldEmail: z.string(),
+    oldName: z.string(),
+    newEmail: z.string(),
+    newName: z.string(),
+  }),
+});
+
+/**
  * Event: Document recipient requested a 2FA token.
  */
 export const ZDocumentAuditLogEventDocumentRecipientRequested2FAEmailSchema = z.object({
@@ -668,6 +684,7 @@ export const ZDocumentAuditLogSchema = ZDocumentAuditLogBaseSchema.and(
     ZDocumentAuditLogEventDocumentViewedSchema,
     ZDocumentAuditLogEventDocumentRecipientCompleteSchema,
     ZDocumentAuditLogEventDocumentRecipientRejectedSchema,
+    ZDocumentAuditLogEventDocumentRecipientReassignedSchema,
     ZDocumentAuditLogEventDocumentRecipientRequested2FAEmailSchema,
     ZDocumentAuditLogEventDocumentRecipientValidated2FAEmailSchema,
     ZDocumentAuditLogEventDocumentRecipientFailed2FAEmailSchema,

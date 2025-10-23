@@ -188,3 +188,14 @@ export const ZRejectDocumentWithTokenMutationSchema = z.object({
 export type TRejectDocumentWithTokenMutationSchema = z.infer<
   typeof ZRejectDocumentWithTokenMutationSchema
 >;
+
+export const ZReassignDocumentWithTokenMutationSchema = z.object({
+  token: z.string(),
+  documentId: z.number(),
+  name: z.string().min(1, { message: 'Name is required' }).max(255),
+  email: z.string().email({ message: 'Invalid email address' }).max(254),
+});
+
+export type TReassignDocumentWithTokenMutationSchema = z.infer<
+  typeof ZReassignDocumentWithTokenMutationSchema
+>;
