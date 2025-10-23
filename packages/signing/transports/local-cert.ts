@@ -1,9 +1,9 @@
+import forge from 'node-forge';
 import * as fs from 'node:fs';
 
 import { getCertificateStatus } from '@documenso/lib/server-only/cert/cert-status';
 import { env } from '@documenso/lib/utils/env';
 import { signWithP12 } from '@documenso/pdf-sign';
-import forge from 'node-forge';
 
 import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
@@ -132,7 +132,10 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
       }
     }
   } catch (error) {
-    console.warn('Failed to extract certificate chain from P12, LTV may not be fully enabled:', error);
+    console.warn(
+      'Failed to extract certificate chain from P12, LTV may not be fully enabled:',
+      error,
+    );
   }
 
   // Add LTV (Long-Term Validation) information if certificate was extracted
@@ -141,7 +144,7 @@ export const signWithLocalCert = async ({ pdf, certificationLevel }: SignWithLoc
       pdf: signedPdf,
       certificate: signingCert,
       certificateChain: certChain,
-      timestampToken: undefined, // P12 signing doesn't return timestamp token separately
+      signature,
       moduleName: 'local-cert',
     });
 

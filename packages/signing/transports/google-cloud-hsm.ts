@@ -2,11 +2,9 @@ import fs from 'node:fs';
 
 import { env } from '@documenso/lib/utils/env';
 import { signWithGCloud } from '@documenso/pdf-sign';
-import forge from 'node-forge';
 
 import { addLTV } from '../helpers/add-ltv';
 import { addSigningPlaceholder } from '../helpers/add-signing-placeholder';
-import { parseCertificate } from '../helpers/pkcs7';
 import { updateSigningPlaceholder } from '../helpers/update-signing-placeholder';
 
 export type SignWithGoogleCloudHSMOptions = {
@@ -129,7 +127,7 @@ export const signWithGoogleCloudHSM = async ({
     pdf: signedPdf,
     certificate: signingCert,
     certificateChain: certChain,
-    timestampToken: undefined, // GCloud signing doesn't return timestamp token separately
+    signature,
     moduleName: 'google-cloud-hsm',
   });
 

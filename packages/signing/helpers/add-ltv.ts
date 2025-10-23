@@ -24,9 +24,11 @@ export type AddLTVOptions = {
   certificateChain?: Buffer[];
 
   /**
-   * Optional timestamp token from TSA
+   * Optional signature buffer to compute hash from (avoids PDF parsing)
+   * If provided, the signature hash will be computed directly from this buffer
+   * instead of parsing the PDF to find the signature
    */
-  timestampToken?: Buffer;
+  signature?: Buffer;
 
   /**
    * Module name for logging
@@ -55,6 +57,18 @@ function computeSignatureHash(signatureContents: string): string {
 }
 
 /**
+ * Compute SHA-256 hash directly from a signature buffer
+ * This is used as the key in the VRI dictionary
+ *
+ * @param signatureBuffer - The signature buffer
+ * @returns Uppercase hex string of SHA-256 hash
+ */
+function computeSignatureHashFromBuffer(signatureBuffer: Buffer): string {
+  const hash = createHash('sha256').update(signatureBuffer).digest('hex');
+  return hash.toUpperCase();
+}
+
+/**
  * Add Long-Term Validation (LTV) information to a signed PDF
  *
  * This adds a Document Security Store (DSS) to the PDF catalog via an incremental update.
@@ -74,7 +88,7 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
     pdf,
     certificate,
     certificateChain = [],
-    timestampToken,
+    signature,
     moduleName = 'ltv',
     enableLTV = process.env.NEXT_PRIVATE_SIGNING_DISABLE_LTV !== 'true',
   } = options;
@@ -91,24 +105,12 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
     {
       module: moduleName,
       hasCertChain: certificateChain.length > 0,
-      hasTimestamp: !!timestampToken,
+      hasSignature: !!signature,
     },
     'Starting LTV enablement process',
   );
 
   try {
-    // Load the signed PDF
-    logger.info({ module: moduleName, pdfSize: pdf.length }, 'Loading signed PDF for LTV');
-
-    const doc = await PDFDocument.load(pdf, {
-      updateMetadata: false,
-      ignoreEncryption: true,
-    });
-
-    logger.info({ module: moduleName }, 'PDF loaded successfully');
-
-    const catalog = doc.catalog;
-
     // Build full certificate chain (signing cert + intermediates)
     const fullChain = [certificate, ...certificateChain];
 
@@ -144,32 +146,49 @@ export async function addLTV(options: AddLTVOptions): Promise<Buffer> {
       'OCSP responses fetched successfully',
     );
 
-    // NOTE: Environment variable skip flags removed - now testing manual PDF writing approach
-    // The manual approach writes raw PDF syntax to avoid pdf-lib serialization issues
-
-    // Find the signature hash for VRI
+    // Find or compute the signature hash for VRI
     let signatureHash: string | null = null;
-    const acroForm = catalog.lookup(PDFName.of('AcroForm'), PDFDict);
-    if (acroForm) {
-      const fields = acroForm.lookup(PDFName.of('Fields'), PDFArray);
-      if (fields) {
-        // Iterate through fields to find signature field
-        for (let i = fields.size() - 1; i >= 0; i--) {
-          const field = fields.lookup(i, PDFDict);
-          const ft = field?.lookup(PDFName.of('FT'), PDFName);
-          const v = field?.lookup(PDFName.of('V'));
 
-          // Check if this is a signature field (FT = /Sig)
-          if (ft?.asString() === '/Sig' && v instanceof PDFDict) {
-            const contents = v.lookup(PDFName.of('Contents'));
-            if (contents instanceof PDFHexString) {
-              const signatureContents = contents.asString();
-              signatureHash = computeSignatureHash(signatureContents);
-              logger.info(
-                { module: moduleName, sigHash: signatureHash },
-                'Found signature hash for VRI',
-              );
-              break;
+    // If signature is provided, compute hash directly from it (avoids PDF parsing)
+    if (signature) {
+      signatureHash = computeSignatureHashFromBuffer(signature);
+      logger.info(
+        { module: moduleName, sigHash: signatureHash },
+        'Computed signature hash from provided signature buffer',
+      );
+    } else {
+      // Otherwise, load PDF and parse to find the signature
+      logger.info({ module: moduleName, pdfSize: pdf.length }, 'Loading PDF to find signature');
+
+      const doc = await PDFDocument.load(pdf, {
+        updateMetadata: false,
+        ignoreEncryption: true,
+      });
+
+      const catalog = doc.catalog;
+      const acroForm = catalog.lookup(PDFName.of('AcroForm'), PDFDict);
+
+      if (acroForm) {
+        const fields = acroForm.lookup(PDFName.of('Fields'), PDFArray);
+        if (fields) {
+          // Iterate through fields to find signature field
+          for (let i = fields.size() - 1; i >= 0; i--) {
+            const field = fields.lookup(i, PDFDict);
+            const ft = field?.lookup(PDFName.of('FT'), PDFName);
+            const v = field?.lookup(PDFName.of('V'));
+
+            // Check if this is a signature field (FT = /Sig)
+            if (ft?.asString() === '/Sig' && v instanceof PDFDict) {
+              const contents = v.lookup(PDFName.of('Contents'));
+              if (contents instanceof PDFHexString) {
+                const signatureContents = contents.asString();
+                signatureHash = computeSignatureHash(signatureContents);
+                logger.info(
+                  { module: moduleName, sigHash: signatureHash },
+                  'Found signature hash from PDF parsing',
+                );
+                break;
+              }
             }
           }
         }

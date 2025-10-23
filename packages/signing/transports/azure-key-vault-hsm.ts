@@ -174,8 +174,6 @@ export const signWithAzureKeyVaultHSM = async ({
     throw new Error('Failed to load certificate for Azure Key Vault HSM signing');
   }
 
-  logger.info({ module: 'azure-key-vault-hsm' }, 'Certificate loaded successfully');
-
   // Load certificate chain for LTV support (optional)
   const certificateChain: Buffer[] = [];
   const azureCertificateChainPath = env('NEXT_PRIVATE_SIGNING_AZURE_CERTIFICATE_CHAIN_PATH');
@@ -362,7 +360,7 @@ export const signWithAzureKeyVaultHSM = async ({
     pdf: signedPdf,
     certificate: cert,
     certificateChain: certificateChain.length > 0 ? certificateChain : undefined,
-    timestampToken,
+    signature,
     moduleName: 'azure-key-vault-hsm',
   });
 

@@ -125,7 +125,7 @@ export function buildAuthenticatedAttributes(pdfHash: Buffer): Buffer {
  * @param pdfHash - The hash of the PDF content (SHA-256)
  * @param timestampToken - Optional timestamp token from TSA (RFC 3161)
  * @param moduleName - Module name for logging (default: 'pkcs7')
- * @param certificateChain - Optional array of intermediate/root CA certificates for LTV
+ * @param certificateChain - Optional array of intermediate/root CA certificates
  * @returns The complete PKCS#7 signature structure as a Buffer
  */
 export function buildPKCS7Signature(
@@ -277,11 +277,11 @@ export function buildPKCS7Signature(
     // Build certificate chain array starting with signing certificate
     const certChainAsn1 = [certAsn1];
 
-    // Add intermediate and root certificates if provided (for LTV support)
+    // Add intermediate and root certificates if provided
     if (certificateChain && certificateChain.length > 0) {
       logger.info(
         { module: moduleName, chainLength: certificateChain.length },
-        'Adding certificate chain for LTV support',
+        'Adding certificate chain',
       );
 
       for (const chainCert of certificateChain) {
@@ -328,7 +328,7 @@ export function buildPKCS7Signature(
           forge.asn1.oidToDer(forge.pki.oids.data).getBytes(),
         ),
       ]),
-      // certificates [0] IMPLICIT - includes full chain for LTV
+      // certificates [0] IMPLICIT
       forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, certChainAsn1),
     ];
 

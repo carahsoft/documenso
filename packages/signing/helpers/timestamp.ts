@@ -200,8 +200,6 @@ export async function getTimestampToken(
     return undefined;
   }
 
-  logger.info({ module: moduleName }, 'Requesting timestamp from TSA');
-
   try {
     const timestampToken = await requestTimestampFromTSA(signature, timestampServerUrl);
 
