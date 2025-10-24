@@ -1,4 +1,4 @@
-import { DocumentStatus, ReadStatus, SendStatus } from '@prisma/client';
+import { DocumentStatus, ReadStatus, SendStatus, WebhookTriggerEvents } from '@prisma/client';
 
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import type { RequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
@@ -7,6 +7,11 @@ import { prisma } from '@documenso/prisma';
 
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import { jobs } from '../../jobs/client';
+import {
+  ZWebhookDocumentSchema,
+  mapDocumentToWebhookDocumentPayload,
+} from '../../types/webhook-payload';
+import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
 export type ReassignDocumentWithTokenOptions = {
   token: string;
@@ -34,6 +39,7 @@ export async function reassignDocumentWithToken({
         select: {
           id: true,
           userId: true,
+          teamId: true,
           status: true,
         },
       },
@@ -116,6 +122,30 @@ export async function reassignDocumentWithToken({
       recipientId: recipient.id,
       requestMetadata,
     },
+  });
+
+  // Fetch the full document with recipients for webhook payload
+  const fullDocument = await prisma.document.findUniqueOrThrow({
+    where: {
+      id: document.id,
+    },
+    include: {
+      documentMeta: true,
+      recipients: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
+    },
+  });
+
+  // Trigger DOCUMENT_SENT webhook
+  await triggerWebhook({
+    event: WebhookTriggerEvents.DOCUMENT_SENT,
+    data: ZWebhookDocumentSchema.parse(mapDocumentToWebhookDocumentPayload(fullDocument)),
+    userId: document.userId,
+    teamId: document.teamId ?? undefined,
   });
 
   return updatedRecipient;
