@@ -84,6 +84,12 @@ export default function ApiTokensPage() {
                     <div>
                       <h5 className="text-base">{token.name}</h5>
 
+                      {token.user && (
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          <Trans>Owner: {token.user.name || token.user.email}</Trans>
+                        </p>
+                      )}
+
                       <p className="text-muted-foreground mt-2 text-xs">
                         <Trans>
                           Created on {i18n.date(token.createdAt, DateTime.DATETIME_FULL)}

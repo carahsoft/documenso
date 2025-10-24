@@ -22,6 +22,14 @@ export const getApiTokens = async ({ userId, teamId }: GetApiTokensOptions) => {
       name: true,
       createdAt: true,
       expires: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     },
     orderBy: {
       createdAt: 'desc',

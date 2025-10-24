@@ -10,6 +10,15 @@ export const ZGetApiTokensResponseSchema = z.array(
     name: true,
     createdAt: true,
     expires: true,
+    userId: true,
+  }).extend({
+    user: z
+      .object({
+        id: z.number(),
+        name: z.string().nullable(),
+        email: z.string(),
+      })
+      .nullable(),
   }),
 );
 
