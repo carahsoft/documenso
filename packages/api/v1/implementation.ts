@@ -222,10 +222,12 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
   approveDownloadDocument: authenticatedMiddleware(
     async (args, user, team, { logger, metadata }) => {
       const { id: documentId } = args.params;
+      const includeSigningCertificate = args.body?.includeSigningCertificate ?? false;
 
       logger.info({
         input: {
           id: documentId,
+          includeSigningCertificate,
         },
       });
 
@@ -307,6 +309,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
             documentId: Number(documentId),
             sendEmail: false,
             requestMetadata: metadata.requestMetadata,
+            includeSigningCertificate,
           });
         }
 

@@ -133,7 +133,14 @@ export const ZDownloadDocumentSuccessfulSchema = z.object({
 
 export type TUploadDocumentSuccessfulSchema = z.infer<typeof ZUploadDocumentSuccessfulSchema>;
 
-export const ZApproveDownloadDocumentMutationSchema = null;
+export const ZApproveDownloadDocumentMutationSchema = z
+  .object({
+    includeSigningCertificate: z.boolean().optional().default(false).openapi({
+      description:
+        'Whether to include the signing certificate in the sealed document. Defaults to false.',
+    }),
+  })
+  .or(z.any().transform(() => ({ includeSigningCertificate: false })));
 
 export type TApproveDownloadDocumentMutationSchema = typeof ZApproveDownloadDocumentMutationSchema;
 

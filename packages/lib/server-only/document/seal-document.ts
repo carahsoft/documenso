@@ -34,6 +34,7 @@ export type SealDocumentOptions = {
   sendEmail?: boolean;
   isResealing?: boolean;
   requestMetadata?: RequestMetadata;
+  includeSigningCertificate?: boolean;
 };
 
 export const sealDocument = async ({
@@ -41,6 +42,7 @@ export const sealDocument = async ({
   sendEmail = true,
   isResealing = false,
   requestMetadata,
+  includeSigningCertificate,
 }: SealDocumentOptions) => {
   const document = await prisma.document.findFirstOrThrow({
     where: {
@@ -114,7 +116,13 @@ export const sealDocument = async ({
   // !: Need to write the fields onto the document as a hard copy
   const pdfData = await getFileServerSide(documentData);
 
-  const certificateData = settings.includeSigningCertificate
+  // Use explicit parameter if provided, otherwise fall back to team settings
+  const shouldIncludeCertificate =
+    includeSigningCertificate !== undefined
+      ? includeSigningCertificate
+      : settings.includeSigningCertificate;
+
+  const certificateData = shouldIncludeCertificate
     ? await getCertificatePdf({
         documentId,
         language: document.documentMeta?.language,
