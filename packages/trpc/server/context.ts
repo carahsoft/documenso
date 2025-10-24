@@ -82,4 +82,5 @@ export type TrpcContext = (
   req: Request;
   metadata: ApiRequestMetadata;
   logger: Logger;
+  allowedTeamIds?: number[];
 };

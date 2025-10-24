@@ -114,6 +114,7 @@ export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path }) 
         user: apiToken.user,
         teamId: requestedTeamId,
         session: null,
+        allowedTeamIds: apiToken.allowedTeamIds,
         metadata: {
           ...ctx.metadata,
           auditUser: apiToken.team
