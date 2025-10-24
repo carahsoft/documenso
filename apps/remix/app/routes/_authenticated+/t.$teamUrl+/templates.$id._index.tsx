@@ -51,17 +51,23 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw redirect(templateRootPath);
   }
 
+  // Determine the back link path - if template is in a folder, link to that folder
+  const backLinkPath = template.folderId
+    ? `${templateRootPath}/f/${template.folderId}`
+    : templateRootPath;
+
   return superLoaderJson({
     user,
     team,
     template,
     templateRootPath,
     documentRootPath,
+    backLinkPath,
   });
 }
 
 export default function TemplatePage() {
-  const { user, team, template, templateRootPath, documentRootPath } =
+  const { user, team, template, templateRootPath, documentRootPath, backLinkPath } =
     useSuperLoaderData<typeof loader>();
 
   const { templateDocumentData, fields, recipients, templateMeta } = template;
@@ -93,7 +99,7 @@ export default function TemplatePage() {
 
   return (
     <div className="mx-auto -mt-4 w-full max-w-screen-xl px-4 md:px-8">
-      <Link to={templateRootPath} className="text-documenso-700 flex items-center hover:opacity-80">
+      <Link to={backLinkPath} className="text-documenso-700 flex items-center hover:opacity-80">
         <ChevronLeft className="mr-2 inline-block h-5 w-5" />
         <Trans>Templates</Trans>
       </Link>

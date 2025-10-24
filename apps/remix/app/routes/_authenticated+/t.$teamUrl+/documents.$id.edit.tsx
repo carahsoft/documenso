@@ -79,6 +79,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw redirect(`${documentRootPath}/${documentId}`);
   }
 
+  // Determine the back link path - if document is in a folder, link to that folder
+  const backLinkPath = document.folderId
+    ? `${documentRootPath}/f/${document.folderId}`
+    : documentRootPath;
+
   logDocumentAccess({
     request,
     documentId,
@@ -91,17 +96,18 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       folder: null,
     },
     documentRootPath,
+    backLinkPath,
   });
 }
 
 export default function DocumentEditPage() {
-  const { document, documentRootPath } = useSuperLoaderData<typeof loader>();
+  const { document, documentRootPath, backLinkPath } = useSuperLoaderData<typeof loader>();
 
   const { recipients } = document;
 
   return (
     <div className="mx-auto -mt-4 w-full max-w-screen-xl px-4 md:px-8">
-      <Link to={documentRootPath} className="text-documenso-700 flex items-center hover:opacity-80">
+      <Link to={backLinkPath} className="text-documenso-700 flex items-center hover:opacity-80">
         <ChevronLeft className="mr-2 inline-block h-5 w-5" />
         <Trans>Documents</Trans>
       </Link>

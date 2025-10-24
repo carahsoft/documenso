@@ -64,6 +64,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw redirect(documentRootPath);
   }
 
+  // Determine the back link path - if document is in a folder, link to that folder
+  const backLinkPath = document.folderId
+    ? `${documentRootPath}/f/${document.folderId}`
+    : documentRootPath;
+
   const documentVisibility = document?.visibility;
   const currentTeamMemberRole = team.currentTeamRole;
   const isRecipient = document?.recipients.find((recipient) => recipient.email === user.email);
@@ -94,6 +99,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return superLoaderJson({
     document,
     documentRootPath,
+    backLinkPath,
   });
 }
 
@@ -103,7 +109,7 @@ export default function DocumentPage() {
   const { _ } = useLingui();
   const { user } = useSession();
 
-  const { document, documentRootPath } = loaderData;
+  const { document, documentRootPath, backLinkPath } = loaderData;
 
   const { recipients, documentData, documentMeta } = document;
 
@@ -113,7 +119,7 @@ export default function DocumentPage() {
         <DocumentRecipientLinkCopyDialog recipients={recipients} />
       )}
 
-      <Link to={documentRootPath} className="text-documenso-700 flex items-center hover:opacity-80">
+      <Link to={backLinkPath} className="text-documenso-700 flex items-center hover:opacity-80">
         <ChevronLeft className="mr-2 inline-block h-5 w-5" />
         <Trans>Documents</Trans>
       </Link>
