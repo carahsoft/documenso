@@ -72,11 +72,16 @@ export const findFolders = async ({ userId, teamId, parentId, type }: FindFolder
             prisma.document.count({
               where: {
                 folderId: folder.id,
+                teamId,
+                deletedAt: null,
+                OR: [{ ...visibilityFilters }, { userId }],
               },
             }),
             prisma.template.count({
               where: {
                 folderId: folder.id,
+                teamId,
+                OR: [{ ...visibilityFilters }, { userId }],
               },
             }),
             prisma.folder.count({
