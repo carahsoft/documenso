@@ -104,7 +104,10 @@ const getCounts = async ({ user, createdAt, search, folderId }: GetCountsOption)
     ],
   };
 
-  const rootPageFilter = folderId === undefined ? { folderId: null } : {};
+  // Always filter by folderId - undefined becomes null (root folder)
+  const folderFilter: Prisma.DocumentWhereInput = {
+    folderId: folderId ?? null,
+  };
 
   return Promise.all([
     // Owner counts.
@@ -117,7 +120,7 @@ const getCounts = async ({ user, createdAt, search, folderId }: GetCountsOption)
         userId: user.id,
         createdAt,
         deletedAt: null,
-        AND: [searchFilter, rootPageFilter, folderId ? { folderId } : {}],
+        AND: [searchFilter, folderFilter],
       },
     }),
     // Not signed counts.
@@ -136,7 +139,7 @@ const getCounts = async ({ user, createdAt, search, folderId }: GetCountsOption)
           },
         },
         createdAt,
-        AND: [searchFilter, rootPageFilter, folderId ? { folderId } : {}],
+        AND: [searchFilter, folderFilter],
       },
     }),
     // Has signed counts.
@@ -174,7 +177,7 @@ const getCounts = async ({ user, createdAt, search, folderId }: GetCountsOption)
             },
           },
         ],
-        AND: [searchFilter, rootPageFilter, folderId ? { folderId } : {}],
+        AND: [searchFilter, folderFilter],
       },
     }),
   ]);
@@ -217,7 +220,7 @@ const getTeamCounts = async (options: GetTeamCountsOption) => {
     createdAt,
     teamId,
     deletedAt: null,
-    folderId,
+    folderId: folderId ?? null,
   };
 
   let notSignedCountsGroupByArgs = null;
@@ -290,7 +293,7 @@ const getTeamCounts = async (options: GetTeamCountsOption) => {
       where: {
         userId: userIdWhereClause,
         createdAt,
-        folderId,
+        folderId: folderId ?? null,
         status: ExtendedDocumentStatus.PENDING,
         recipients: {
           some: {
@@ -311,7 +314,7 @@ const getTeamCounts = async (options: GetTeamCountsOption) => {
       where: {
         userId: userIdWhereClause,
         createdAt,
-        folderId,
+        folderId: folderId ?? null,
         OR: [
           {
             status: ExtendedDocumentStatus.PENDING,
