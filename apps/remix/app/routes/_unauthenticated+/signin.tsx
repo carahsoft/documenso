@@ -28,7 +28,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   const isEntraSSOEnabled = IS_ENTRA_SSO_ENABLED;
   const isOIDCSSOEnabled = IS_OIDC_SSO_ENABLED;
   const oidcProviderLabel = OIDC_PROVIDER_LABEL;
-  const isSSOOnly = IS_SSO_ONLY;
+
+  // Check for 'local' query parameter to allow local login when SSO_ONLY is enabled
+  const url = new URL(request.url);
+  const allowLocalLogin = url.searchParams.get('local') === '1';
+  const isSSOOnly = IS_SSO_ONLY && !allowLocalLogin;
 
   if (isAuthenticated) {
     throw redirect('/');
