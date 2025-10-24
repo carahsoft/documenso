@@ -81,6 +81,19 @@ export const findInbox = async ({ userId, page = 1, perPage = 10, orderBy }: Fin
             url: true,
           },
         },
+        template: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+          },
+        },
       },
     }),
     prisma.document.count({

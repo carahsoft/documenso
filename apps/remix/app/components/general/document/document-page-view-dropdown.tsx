@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import type { Document, Recipient, Team, User } from '@prisma/client';
 import { DocumentStatus } from '@prisma/client';
 import {
   Copy,
@@ -19,6 +18,7 @@ import { Link, useNavigate } from 'react-router';
 
 import { downloadPDF } from '@documenso/lib/client-only/download-pdf';
 import { useSession } from '@documenso/lib/client-only/providers/session';
+import type { TDocumentMany } from '@documenso/lib/types/document';
 import { isDocumentCompleted } from '@documenso/lib/utils/document';
 import { env } from '@documenso/lib/utils/env';
 import { formatDocumentsPath } from '@documenso/lib/utils/teams';
@@ -40,11 +40,7 @@ import { DocumentRecipientLinkCopyDialog } from '~/components/general/document/d
 import { useCurrentTeam } from '~/providers/team';
 
 export type DocumentPageViewDropdownProps = {
-  document: Document & {
-    user: Pick<User, 'id' | 'name' | 'email'>;
-    recipients: Recipient[];
-    team: Pick<Team, 'id' | 'url'> | null;
-  };
+  document: TDocumentMany;
 };
 
 export const DocumentPageViewDropdown = ({ document }: DocumentPageViewDropdownProps) => {

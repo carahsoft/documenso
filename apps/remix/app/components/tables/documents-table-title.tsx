@@ -1,3 +1,4 @@
+import { FolderIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
@@ -21,7 +22,7 @@ export const DataTableTitle = ({ row, teamUrl }: DataTableTitleProps) => {
 
   const documentsPath = formatDocumentsPath(teamUrl);
 
-  return match({
+  const titleLink = match({
     isOwner,
     isRecipient,
     isCurrentTeamDocument,
@@ -49,4 +50,21 @@ export const DataTableTitle = ({ row, teamUrl }: DataTableTitleProps) => {
         {row.title}
       </span>
     ));
+
+  return (
+    <div className="flex flex-col">
+      {titleLink}
+      {row.folder && (
+        <div className="text-muted-foreground flex max-w-[10rem] items-center gap-1 text-xs md:max-w-[20rem]">
+          <FolderIcon className="h-3 w-3 flex-shrink-0" />
+          <Link
+            to={`${documentsPath}?folderId=${row.folder.id}`}
+            className="truncate hover:underline"
+          >
+            {row.folder.name}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 };

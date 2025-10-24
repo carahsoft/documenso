@@ -5,6 +5,7 @@ import { DocumentMetaSchema } from '@documenso/prisma/generated/zod/modelSchema/
 import { DocumentSchema } from '@documenso/prisma/generated/zod/modelSchema/DocumentSchema';
 import { FolderSchema } from '@documenso/prisma/generated/zod/modelSchema/FolderSchema';
 import { TeamSchema } from '@documenso/prisma/generated/zod/modelSchema/TeamSchema';
+import { TemplateSchema } from '@documenso/prisma/generated/zod/modelSchema/TemplateSchema';
 import { UserSchema } from '@documenso/prisma/generated/zod/modelSchema/UserSchema';
 
 import { ZFieldSchema } from './field';
@@ -137,6 +138,15 @@ export const ZDocumentManySchema = DocumentSchema.pick({
   team: TeamSchema.pick({
     id: true,
     url: true,
+  }).nullable(),
+  template: TemplateSchema.pick({
+    id: true,
+    title: true,
+  }).nullable(),
+  folder: FolderSchema.pick({
+    id: true,
+    name: true,
+    parentId: true,
   }).nullable(),
 });
 

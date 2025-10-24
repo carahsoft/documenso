@@ -39,6 +39,19 @@ export const findDocuments = async ({ query, page = 1, perPage = 10 }: FindDocum
           },
         },
         recipients: true,
+        template: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+          },
+        },
       },
     }),
     prisma.document.count({

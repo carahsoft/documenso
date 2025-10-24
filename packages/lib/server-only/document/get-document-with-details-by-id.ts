@@ -28,7 +28,6 @@ export const getDocumentWithDetailsById = async ({
       documentData: true,
       documentMeta: true,
       recipients: true,
-      folder: true,
       fields: {
         include: {
           signature: true,
@@ -52,6 +51,26 @@ export const getDocumentWithDetailsById = async ({
           id: true,
           name: true,
           email: true,
+        },
+      },
+      folder: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          visibility: true,
+          userId: true,
+          teamId: true,
+          pinned: true,
+          parentId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      template: {
+        select: {
+          id: true,
+          title: true,
         },
       },
     },

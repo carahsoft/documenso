@@ -2,7 +2,7 @@ import { useMemo, useTransition } from 'react';
 
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
-import { Loader } from 'lucide-react';
+import { FileTextIcon, Loader } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { Link } from 'react-router';
 import { match } from 'ts-pattern';
@@ -182,7 +182,7 @@ const DataTableTitle = ({ row, teamUrl }: DataTableTitleProps) => {
   const documentsPath = formatDocumentsPath(teamUrl);
   const formatPath = `${documentsPath}/${row.id}`;
 
-  return match({
+  const titleLink = match({
     isOwner,
     isRecipient,
     isCurrentTeamDocument,
@@ -206,8 +206,23 @@ const DataTableTitle = ({ row, teamUrl }: DataTableTitleProps) => {
       </Link>
     ))
     .otherwise(() => (
-      <span className="block max-w-[10rem] truncate font-medium hover:underline md:max-w-[20rem]">
-        {row.title}
-      </span>
+      <span className="block max-w-[10rem] truncate font-medium md:max-w-[20rem]">{row.title}</span>
     ));
+
+  return (
+    <div className="flex flex-col">
+      {titleLink}
+      {row.template && (
+        <div className="text-muted-foreground flex max-w-[10rem] items-center gap-1 text-xs md:max-w-[20rem]">
+          <FileTextIcon className="h-3 w-3 flex-shrink-0" />
+          <Link
+            to={`${documentsPath.replace('/documents', '/templates')}/${row.template.id}`}
+            className="truncate hover:underline"
+          >
+            {row.template.title}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 };
