@@ -7,7 +7,7 @@ import { ExtendedDocumentStatus } from '@documenso/prisma/types/extended-documen
 import { ZFindDocumentsRequestSchema } from './find-documents.types';
 
 export const ZFindDocumentsInternalRequestSchema = ZFindDocumentsRequestSchema.extend({
-  period: z.enum(['7d', '14d', '30d']).optional(),
+  period: z.enum(['7d', '14d', '30d', 'over30d']).optional(),
   senderIds: z.array(z.number()).optional(),
   status: z.nativeEnum(ExtendedDocumentStatus).optional(),
   folderId: z

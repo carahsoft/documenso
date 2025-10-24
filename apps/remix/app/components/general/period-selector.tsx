@@ -14,7 +14,7 @@ import {
 
 const isPeriodSelectorValue = (value: unknown): value is PeriodSelectorValue => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  return ['', '7d', '14d', '30d'].includes(value as string);
+  return ['', '7d', '14d', '30d', 'over30d'].includes(value as string);
 };
 
 export const PeriodSelector = () => {
@@ -63,6 +63,9 @@ export const PeriodSelector = () => {
         </SelectItem>
         <SelectItem value="30d">
           <Trans>Last 30 days</Trans>
+        </SelectItem>
+        <SelectItem value="over30d">
+          <Trans>Over 30 days</Trans>
         </SelectItem>
       </SelectContent>
     </Select>

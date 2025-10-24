@@ -11,7 +11,7 @@ import { type FindResultResponse } from '../../types/search-params';
 import { maskRecipientTokensForDocument } from '../../utils/mask-recipient-tokens-for-document';
 import { getTeamById } from '../team/get-team';
 
-export type PeriodSelectorValue = '' | '7d' | '14d' | '30d';
+export type PeriodSelectorValue = '' | '7d' | '14d' | '30d' | 'over30d';
 
 export type FindDocumentsOptions = {
   userId: number;
@@ -204,19 +204,33 @@ export const findDocuments = async ({
     });
   }
 
+  if (period) {
+    if (period === 'over30d') {
+      // For "over 30 days", show documents created more than 30 days ago
+      const thirtyDaysAgo = DateTime.now().minus({ days: 30 }).endOf('day');
+
+      whereAndClause.push({
+        createdAt: {
+          lte: thirtyDaysAgo.toJSDate(),
+        },
+      });
+    } else {
+      // For "7d", "14d", "30d" - show documents created within the last X days
+      const daysAgo = parseInt(period.replace(/d$/, ''), 10);
+
+      const startOfPeriod = DateTime.now().minus({ days: daysAgo }).startOf('day');
+
+      whereAndClause.push({
+        createdAt: {
+          gte: startOfPeriod.toJSDate(),
+        },
+      });
+    }
+  }
+
   const whereClause: Prisma.DocumentWhereInput = {
     AND: whereAndClause,
   };
-
-  if (period) {
-    const daysAgo = parseInt(period.replace(/d$/, ''), 10);
-
-    const startOfPeriod = DateTime.now().minus({ days: daysAgo }).startOf('day');
-
-    whereClause.createdAt = {
-      gte: startOfPeriod.toJSDate(),
-    };
-  }
 
   if (senderIds && senderIds.length > 0) {
     whereAndClause.push({

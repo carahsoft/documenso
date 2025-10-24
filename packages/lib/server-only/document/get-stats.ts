@@ -28,13 +28,23 @@ export const getStats = async ({
   let createdAt: Prisma.DocumentWhereInput['createdAt'];
 
   if (period) {
-    const daysAgo = parseInt(period.replace(/d$/, ''), 10);
+    if (period === 'over30d') {
+      // For "over 30 days", show documents created more than 30 days ago
+      const thirtyDaysAgo = DateTime.now().minus({ days: 30 }).endOf('day');
 
-    const startOfPeriod = DateTime.now().minus({ days: daysAgo }).startOf('day');
+      createdAt = {
+        lte: thirtyDaysAgo.toJSDate(),
+      };
+    } else {
+      // For "7d", "14d", "30d" - show documents created within the last X days
+      const daysAgo = parseInt(period.replace(/d$/, ''), 10);
 
-    createdAt = {
-      gte: startOfPeriod.toJSDate(),
-    };
+      const startOfPeriod = DateTime.now().minus({ days: daysAgo }).startOf('day');
+
+      createdAt = {
+        gte: startOfPeriod.toJSDate(),
+      };
+    }
   }
 
   const [ownerCounts, notSignedCounts, hasSignedCounts] = await (options.team
