@@ -12,7 +12,13 @@ export type FindTemplatesOptions = {
   type?: Template['type'];
   page?: number;
   perPage?: number;
-  folderId?: string;
+  /**
+   * Filter by folder:
+   * - undefined: return templates from all folders (no filtering)
+   * - null: return templates from root folder only
+   * - string: return templates from specific folder ID
+   */
+  folderId?: string | null;
 };
 
 export const findTemplates = async ({
@@ -64,10 +70,12 @@ export const findTemplates = async ({
     );
   }
 
-  if (folderId) {
+  // Handle folder filtering:
+  // - undefined: no filtering (all folders)
+  // - null: root folder only
+  // - string: specific folder ID
+  if (folderId !== undefined) {
     whereFilter.push({ folderId });
-  } else {
-    whereFilter.push({ folderId: null });
   }
 
   const [data, count] = await Promise.all([

@@ -74,7 +74,8 @@ export default function DocumentsPage() {
 
   const { data, isLoading, isLoadingError } = trpc.document.findDocumentsInternal.useQuery({
     ...findDocumentSearchParams,
-    folderId,
+    // folderId from URL: undefined = root folder (pass null), string = specific folder
+    folderId: folderId ?? null,
   });
 
   const getTabHref = (value: keyof typeof ExtendedDocumentStatus) => {

@@ -29,7 +29,21 @@ export const ZFindDocumentsRequestSchema = ZFindSearchParamsSchema.extend({
     .nativeEnum(DocumentStatus)
     .describe('Filter documents by the current status')
     .optional(),
-  folderId: z.string().describe('Filter documents by folder ID').optional(),
+  folderId: z
+    .string()
+    .nullable()
+    .describe(
+      'Filter documents by folder. Omit for all folders, pass null or empty string for root folder only, or pass folder ID for specific folder.',
+    )
+    .optional()
+    .transform((val) => {
+      // Convert empty string or "null" string to null (root folder)
+      if (val === '' || val === 'null') {
+        return null;
+      }
+      // undefined stays undefined (all folders), null for root, string for specific folder
+      return val;
+    }),
   orderByColumn: z.enum(['createdAt']).optional(),
   orderByDirection: z.enum(['asc', 'desc']).describe('').default('desc'),
 });

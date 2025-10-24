@@ -75,6 +75,7 @@ export const TemplatePageViewDocumentsTable = ({
       query: parsedSearchParams.query,
       source: parsedSearchParams.source,
       status: parsedSearchParams.status,
+      // Don't pass folderId (undefined) to show all documents from this template regardless of folder
     },
     {
       placeholderData: (previousData) => previousData,

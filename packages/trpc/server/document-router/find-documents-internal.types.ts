@@ -10,7 +10,18 @@ export const ZFindDocumentsInternalRequestSchema = ZFindDocumentsRequestSchema.e
   period: z.enum(['7d', '14d', '30d']).optional(),
   senderIds: z.array(z.number()).optional(),
   status: z.nativeEnum(ExtendedDocumentStatus).optional(),
-  folderId: z.string().optional(),
+  folderId: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => {
+      // Convert empty string to null (root folder)
+      if (val === '') {
+        return null;
+      }
+      // undefined stays undefined (all folders), null for root, string for specific folder
+      return val;
+    }),
 });
 
 export const ZFindDocumentsInternalResponseSchema = ZFindResultResponse.extend({

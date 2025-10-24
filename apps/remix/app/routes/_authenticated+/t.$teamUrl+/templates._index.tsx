@@ -33,7 +33,8 @@ export default function TemplatesPage() {
   const { data, isLoading, isLoadingError } = trpc.template.findTemplates.useQuery({
     page: page,
     perPage: perPage,
-    folderId,
+    // folderId from URL: undefined = root folder (pass null), string = specific folder
+    folderId: folderId ?? null,
   });
 
   return (

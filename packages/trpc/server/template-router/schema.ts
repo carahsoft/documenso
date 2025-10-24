@@ -216,7 +216,21 @@ export const ZUpdateTemplateResponseSchema = ZTemplateLiteSchema;
 
 export const ZFindTemplatesRequestSchema = ZFindSearchParamsSchema.extend({
   type: z.nativeEnum(TemplateType).describe('Filter templates by type.').optional(),
-  folderId: z.string().describe('The ID of the folder to filter templates by.').optional(),
+  folderId: z
+    .string()
+    .nullable()
+    .describe(
+      'Filter templates by folder. Omit for all folders, pass null or empty string for root folder only, or pass folder ID for specific folder.',
+    )
+    .optional()
+    .transform((val) => {
+      // Convert empty string or "null" string to null (root folder)
+      if (val === '' || val === 'null') {
+        return null;
+      }
+      // undefined stays undefined (all folders), null for root, string for specific folder
+      return val;
+    }),
 });
 
 export const ZFindTemplatesResponseSchema = ZFindResultResponse.extend({
