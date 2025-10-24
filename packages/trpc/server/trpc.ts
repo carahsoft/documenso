@@ -89,6 +89,19 @@ export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path }) 
 
     const apiToken = await getApiTokenByToken({ token });
 
+    // Determine which team to use:
+    // 1. Check for teamId in x-team-id header (already parsed in context)
+    // 2. Fall back to the token's home team
+    const requestedTeamId = ctx.teamId ?? apiToken.teamId;
+
+    // Validate that the token has access to the requested team
+    if (!apiToken.allowedTeamIds.includes(requestedTeamId)) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'API token does not have access to this team',
+      });
+    }
+
     ctx.logger.info({
       ...infoToLog,
       userId: apiToken.user.id,
@@ -99,7 +112,7 @@ export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path }) 
       ctx: {
         ...ctx,
         user: apiToken.user,
-        teamId: apiToken.teamId,
+        teamId: requestedTeamId,
         session: null,
         metadata: {
           ...ctx.metadata,

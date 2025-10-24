@@ -12,6 +12,10 @@ export const createApiTokenRoute = authenticatedProcedure
   .mutation(async ({ input, ctx }) => {
     const { tokenName, teamId, expirationDate } = input;
 
+    if (!teamId) {
+      throw new Error('teamId is required');
+    }
+
     ctx.logger.info({
       input: {
         teamId,

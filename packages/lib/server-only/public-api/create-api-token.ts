@@ -40,6 +40,9 @@ export const createApiToken = async ({
       userId,
       roles: TEAM_MEMBER_ROLE_PERMISSIONS_MAP['MANAGE_TEAM'],
     }),
+    include: {
+      organisation: true,
+    },
   });
 
   if (!team) {

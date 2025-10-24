@@ -16,6 +16,12 @@ export const openApiDocument = {
         in: 'header',
         name: 'Authorization',
       },
+      teamId: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-team-id',
+        description: 'Optional team ID to scope the request to a specific team context',
+      },
     },
   }),
 

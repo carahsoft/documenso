@@ -9,6 +9,7 @@ import type { ApiRequestMetadata } from '@documenso/lib/universal/extract-reques
 import { extractRequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
 import { nanoid } from '@documenso/lib/universal/id';
 import { logger } from '@documenso/lib/utils/logger';
+import { prisma } from '@documenso/prisma';
 
 type B = {
   // appRoute: any;
@@ -31,7 +32,10 @@ export const authenticatedMiddleware = <
     args: T & { req: TsRestRequest },
     user: Pick<User, 'id' | 'email' | 'name' | 'disabled'>,
     team: Team,
-    options: { metadata: ApiRequestMetadata; logger: Logger },
+    options: {
+      metadata: ApiRequestMetadata;
+      logger: Logger;
+    },
   ) => Promise<R>,
 ) => {
   return async (args: T, { request }: B) => {
@@ -69,6 +73,32 @@ export const authenticatedMiddleware = <
         });
       }
 
+      // Determine which team to use:
+      // 1. Check for teamId in x-team-id header
+      // 2. Fall back to the token's home team
+      const requestedTeamId =
+        'x-team-id' in args.headers && args.headers['x-team-id']
+          ? Number(args.headers['x-team-id'])
+          : apiToken.team.id;
+
+      // Validate that the token has access to the requested team
+      if (!apiToken.allowedTeamIds.includes(requestedTeamId)) {
+        throw new AppError(AppErrorCode.UNAUTHORIZED, {
+          message: 'API token does not have access to this team',
+        });
+      }
+
+      // Fetch the requested team to pass to the handler
+      const team = await prisma.team.findUnique({
+        where: { id: requestedTeamId },
+      });
+
+      if (!team) {
+        throw new AppError(AppErrorCode.NOT_FOUND, {
+          message: 'Team not found',
+        });
+      }
+
       apiLogger.info({
         ...infoToLog,
         userId: apiToken.user.id,
@@ -80,9 +110,9 @@ export const authenticatedMiddleware = <
         source: 'apiV1',
         auth: 'api',
         auditUser: {
-          id: apiToken.team ? null : apiToken.user.id,
-          email: apiToken.team ? null : apiToken.user.email,
-          name: apiToken.team?.name ?? apiToken.user.name,
+          id: team ? null : apiToken.user.id,
+          email: team ? null : apiToken.user.email,
+          name: team?.name ?? apiToken.user.name,
         },
       };
 
@@ -92,8 +122,11 @@ export const authenticatedMiddleware = <
           req: request,
         },
         apiToken.user,
-        apiToken.team,
-        { metadata, logger: apiLogger },
+        team,
+        {
+          metadata,
+          logger: apiLogger,
+        },
       );
     } catch (err) {
       console.log({ err });

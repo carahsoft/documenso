@@ -1,3 +1,5 @@
+import { OrganisationGroupType, OrganisationMemberRole } from '@prisma/client';
+
 import { prisma } from '@documenso/prisma';
 
 import { hashString } from '../auth/hash';
@@ -59,8 +61,52 @@ export const getApiTokenByToken = async ({ token }: { token: string }) => {
     throw new Error('Invalid token');
   }
 
+  // Check if the token owner is an organisation MANAGER or ADMIN
+  // If so, grant them access to all teams in the organisation
+  let allowedTeamIds = [apiToken.teamId];
+
+  if (apiToken.team && apiToken.userId) {
+    const orgMember = await prisma.organisationMember.findFirst({
+      where: {
+        userId: apiToken.userId,
+        organisationId: apiToken.team.organisationId,
+      },
+      include: {
+        organisationGroupMembers: {
+          include: {
+            group: true,
+          },
+        },
+      },
+    });
+
+    if (orgMember) {
+      const hasOrgManagerOrAdminRole = orgMember.organisationGroupMembers.some(
+        (groupMember) =>
+          (groupMember.group.organisationRole === OrganisationMemberRole.ADMIN ||
+            groupMember.group.organisationRole === OrganisationMemberRole.MANAGER) &&
+          groupMember.group.type === OrganisationGroupType.INTERNAL_ORGANISATION,
+      );
+
+      if (hasOrgManagerOrAdminRole) {
+        // Fetch all team IDs in the organisation
+        const orgTeams = await prisma.team.findMany({
+          where: {
+            organisationId: apiToken.team.organisationId,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        allowedTeamIds = orgTeams.map((team) => team.id);
+      }
+    }
+  }
+
   return {
     ...apiToken,
     user,
+    allowedTeamIds,
   };
 };
