@@ -89,6 +89,7 @@ export const ZCreateDocumentFromDirectTemplateRequestSchema = z.object({
   directTemplateExternalId: z.string().optional(),
   signedFieldValues: z.array(ZSignFieldWithTokenMutationSchema),
   templateUpdatedAt: z.date(),
+  twoFactorAuthCode: z.string().optional(),
 });
 
 export const ZCreateDocumentFromTemplateRequestSchema = z.object({

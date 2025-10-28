@@ -9,6 +9,7 @@ import { match } from 'ts-pattern';
 import { DEFAULT_DOCUMENT_DATE_FORMAT } from '@documenso/lib/constants/date-formats';
 import { PDF_VIEWER_PAGE_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { DEFAULT_DOCUMENT_TIME_ZONE } from '@documenso/lib/constants/time-zones';
+import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import {
   ZCheckboxFieldMeta,
   ZDropdownFieldMeta,
@@ -58,7 +59,11 @@ export type DirectTemplateSigningFormProps = {
   directRecipient: Recipient;
   directRecipientFields: Field[];
   template: Omit<TTemplate, 'user'>;
-  onSubmit: (_data: DirectTemplateLocalField[]) => Promise<void>;
+  onSubmit: (
+    _data: DirectTemplateLocalField[],
+    _accessAuthOptions?: TRecipientAccessAuth,
+  ) => Promise<void>;
+  directTemplateToken?: string;
 };
 
 export type DirectTemplateLocalField = Field & {
@@ -72,6 +77,7 @@ export const DirectTemplateSigningForm = ({
   directRecipientFields,
   template,
   onSubmit,
+  directTemplateToken,
 }: DirectTemplateSigningFormProps) => {
   const { fullName, signature, setFullName, setSignature } = useRequiredDocumentSigningContext();
 
@@ -149,7 +155,7 @@ export const DirectTemplateSigningForm = ({
     validateFieldsInserted(fieldsRequiringValidation);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (accessAuthOptions?: TRecipientAccessAuth) => {
     setValidateUninsertedFields(true);
 
     const isFieldsValid = validateFieldsInserted(fieldsRequiringValidation);
@@ -161,9 +167,10 @@ export const DirectTemplateSigningForm = ({
     setIsSubmitting(true);
 
     try {
-      await onSubmit(localFields);
-    } catch {
+      await onSubmit(localFields, accessAuthOptions);
+    } catch (error) {
       setIsSubmitting(false);
+      throw error;
     }
 
     // Do not reset to false since we do a redirect.
@@ -417,11 +424,15 @@ export const DirectTemplateSigningForm = ({
 
           <DocumentSigningCompleteDialog
             isSubmitting={isSubmitting}
-            onSignatureComplete={async () => handleSubmit()}
+            onSignatureComplete={async (_nextSigner, accessAuthOptions) =>
+              handleSubmit(accessAuthOptions)
+            }
             documentTitle={template.title}
             fields={localFields}
             fieldsValidated={fieldsValidated}
             recipient={directRecipient}
+            isDirectTemplate={true}
+            directTemplateToken={directTemplateToken}
           />
         </div>
       </DocumentFlowFormContainerFooter>

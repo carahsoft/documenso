@@ -22,6 +22,7 @@ import { nanoid, prefixedId } from '@documenso/lib/universal/id';
 import { prisma } from '@documenso/prisma';
 import type { TSignFieldWithTokenMutationSchema } from '@documenso/trpc/server/field-router/schema';
 
+import { validateTwoFactorTokenFromEmail } from '../2fa/email/validate-2fa-token-from-email';
 import { getI18nInstance } from '../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
 import { AppError, AppErrorCode } from '../../errors/app-error';
@@ -58,6 +59,7 @@ export type CreateDocumentFromDirectTemplateOptions = {
   signedFieldValues: TSignFieldWithTokenMutationSchema[];
   templateUpdatedAt: Date;
   requestMetadata: ApiRequestMetadata;
+  twoFactorAuthCode?: string;
   user?: {
     id: number;
     name?: string;
@@ -88,6 +90,7 @@ export const createDocumentFromDirectTemplate = async ({
   signedFieldValues,
   templateUpdatedAt,
   requestMetadata,
+  twoFactorAuthCode,
   user,
 }: CreateDocumentFromDirectTemplateOptions): Promise<TCreateDocumentFromDirectTemplateResponse> => {
   const template = await prisma.template.findFirst({
@@ -156,10 +159,34 @@ export const createDocumentFromDirectTemplate = async ({
 
   const directRecipientName = user?.name || initialDirectRecipientName;
 
+  // Validate 2FA if required
+  const requires2FA = derivedRecipientAccessAuth.includes(DocumentAccessAuth.TWO_FACTOR_AUTH);
+
+  if (requires2FA) {
+    if (!twoFactorAuthCode) {
+      throw new AppError(AppErrorCode.TWO_FACTOR_AUTH_FAILED, {
+        message: 'Two-factor authentication code is required',
+      });
+    }
+
+    const is2FAValid = await validateTwoFactorTokenFromEmail({
+      id: directTemplateToken,
+      email: directRecipientEmail,
+      code: twoFactorAuthCode,
+      window: 10, // 5 minutes worth of tokens
+    });
+
+    if (!is2FAValid) {
+      throw new AppError(AppErrorCode.TWO_FACTOR_AUTH_FAILED, {
+        message: 'Invalid two-factor authentication code',
+      });
+    }
+  }
+
   // Ensure typesafety when we add more options.
   const isAccessAuthValid = match(derivedRecipientAccessAuth.at(0))
     .with(DocumentAccessAuth.ACCOUNT, () => user && user?.email === directRecipientEmail)
-    .with(DocumentAccessAuth.TWO_FACTOR_AUTH, () => false) // Not supported for direct templates
+    .with(DocumentAccessAuth.TWO_FACTOR_AUTH, () => true) // Validated above
     .with(undefined, () => true)
     .exhaustive();
 
@@ -460,6 +487,7 @@ export const createDocumentFromDirectTemplate = async ({
     /**
      * Create the following audit logs.
      * - DOCUMENT_CREATED
+     * - DOCUMENT_ACCESS_AUTH_2FA_VALIDATED (if 2FA was used)
      * - DOCUMENT_FIELD_INSERTED
      * - DOCUMENT_RECIPIENT_COMPLETED
      */
@@ -482,6 +510,19 @@ export const createDocumentFromDirectTemplate = async ({
           },
         },
       }),
+      ...(requires2FA
+        ? [
+            createDocumentAuditLogData({
+              type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_ACCESS_AUTH_2FA_VALIDATED,
+              documentId: document.id,
+              data: {
+                recipientId: createdDirectRecipient.id,
+                recipientName: createdDirectRecipient.name,
+                recipientEmail: createdDirectRecipient.email,
+              },
+            }),
+          ]
+        : []),
       createDocumentAuditLogData({
         type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_OPENED,
         documentId: document.id,

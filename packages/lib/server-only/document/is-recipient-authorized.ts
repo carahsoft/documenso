@@ -132,7 +132,7 @@ export const isRecipientAuthorized = async ({
         }
 
         return await validateTwoFactorTokenFromEmail({
-          documentId: recipient.documentId,
+          id: recipient.documentId,
           email: recipient.email,
           code: token,
           window: 10, // 5 minutes worth of tokens

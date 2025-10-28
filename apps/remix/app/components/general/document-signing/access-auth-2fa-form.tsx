@@ -33,9 +33,23 @@ export type AccessAuth2FAFormProps = {
   onSubmit: (accessAuthOptions: TRecipientAccessAuth) => void;
   token: string;
   error?: string | null;
+  /**
+   * For direct templates, we need the email since there's no document yet
+   */
+  email?: string;
+  /**
+   * Indicates if this is a direct template flow (vs document flow)
+   */
+  isDirectTemplate?: boolean;
 };
 
-export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormProps) => {
+export const AccessAuth2FAForm = ({
+  onSubmit,
+  token,
+  error,
+  email,
+  isDirectTemplate = false,
+}: AccessAuth2FAFormProps) => {
   const [step, setStep] = useState<FormStep>('method-selection');
   const [selectedMethod, setSelectedMethod] = useState<TwoFactorMethod | null>(null);
 
@@ -49,6 +63,11 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
 
   const { mutateAsync: request2FAEmail, isPending: isRequesting2FAEmail } =
     trpc.document.accessAuth.request2FAEmail.useMutation();
+
+  const {
+    mutateAsync: request2FAEmailForDirectTemplate,
+    isPending: isRequesting2FAEmailForDirectTemplate,
+  } = trpc.template.accessAuth.request2FAEmailForDirectTemplate.useMutation();
 
   const form = useForm({
     resolver: zodResolver(ZAccessAuth2FAFormSchema),
@@ -64,9 +83,21 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
 
     if (method === 'email') {
       try {
-        const result = await request2FAEmail({
-          token: token,
-        });
+        let result;
+
+        if (isDirectTemplate) {
+          if (!email) {
+            throw new Error('Email is required for direct template 2FA');
+          }
+          result = await request2FAEmailForDirectTemplate({
+            token,
+            email,
+          });
+        } else {
+          result = await request2FAEmail({
+            token,
+          });
+        }
 
         setExpiresAt(result.expiresAt);
         setMillisecondsRemaining(result.expiresAt.valueOf() - Date.now());
@@ -116,9 +147,21 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
     }
 
     try {
-      const result = await request2FAEmail({
-        token: token,
-      });
+      let result;
+
+      if (isDirectTemplate) {
+        if (!email) {
+          throw new Error('Email is required for direct template 2FA');
+        }
+        result = await request2FAEmailForDirectTemplate({
+          token,
+          email,
+        });
+      } else {
+        result = await request2FAEmail({
+          token,
+        });
+      }
 
       setExpiresAt(result.expiresAt);
       setMillisecondsRemaining(result.expiresAt.valueOf() - Date.now());
@@ -132,6 +175,8 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
       });
     }
   };
+
+  const isLoading = isRequesting2FAEmail || isRequesting2FAEmailForDirectTemplate;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -168,7 +213,7 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
               variant="outline"
               className="flex h-auto w-full justify-start gap-3 p-4"
               onClick={async () => onMethodSelect('email')}
-              disabled={isRequesting2FAEmail}
+              disabled={isLoading}
             >
               <MailIcon className="h-5 w-5" />
               <div className="text-left">
@@ -187,7 +232,7 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
                 variant="outline"
                 className="flex h-auto w-full justify-start gap-3 p-4"
                 onClick={async () => onMethodSelect('authenticator')}
-                disabled={isRequesting2FAEmail}
+                disabled={isLoading}
               >
                 <KeyIcon className="h-5 w-5" />
                 <div className="text-left">
@@ -235,7 +280,7 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
               className="space-y-4"
               onSubmit={form.handleSubmit(onFormSubmit)}
             >
-              <fieldset disabled={isRequesting2FAEmail || form.formState.isSubmitting}>
+              <fieldset disabled={isLoading || form.formState.isSubmitting}>
                 <FormField
                   control={form.control}
                   name="token"
@@ -284,7 +329,7 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
                     form="access-auth-2fa-form"
                     className="w-full"
                     disabled={!form.formState.isValid}
-                    loading={isRequesting2FAEmail || form.formState.isSubmitting}
+                    loading={isLoading || form.formState.isSubmitting}
                   >
                     <Trans>Verify & Complete</Trans>
                   </Button>
@@ -296,7 +341,7 @@ export const AccessAuth2FAForm = ({ onSubmit, token, error }: AccessAuth2FAFormP
                       size="sm"
                       className="w-full"
                       onClick={onResendEmail}
-                      loading={isRequesting2FAEmail}
+                      loading={isLoading}
                     >
                       <Trans>Resend code</Trans>
                     </Button>

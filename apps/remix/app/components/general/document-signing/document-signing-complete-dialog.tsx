@@ -53,6 +53,14 @@ export type DocumentSigningCompleteDialogProps = {
     name: string;
     email: string;
   };
+  /**
+   * Indicates if this is a direct template flow (vs document flow)
+   */
+  isDirectTemplate?: boolean;
+  /**
+   * The direct template token (only used when isDirectTemplate is true)
+   */
+  directTemplateToken?: string;
 };
 
 const ZNextSignerFormSchema = z.object({
@@ -73,6 +81,8 @@ export const DocumentSigningCompleteDialog = ({
   disabled = false,
   allowDictateNextSigner = false,
   defaultNextSigner,
+  isDirectTemplate = false,
+  directTemplateToken,
 }: DocumentSigningCompleteDialogProps) => {
   const [showDialog, setShowDialog] = useState(false);
   const [isEditingNextSigner, setIsEditingNextSigner] = useState(false);
@@ -360,9 +370,11 @@ export const DocumentSigningCompleteDialog = ({
 
         {showTwoFactorForm && (
           <AccessAuth2FAForm
-            token={recipient.token}
+            token={isDirectTemplate && directTemplateToken ? directTemplateToken : recipient.token}
             error={twoFactorValidationError}
             onSubmit={onTwoFactorFormSubmit}
+            email={recipient.email}
+            isDirectTemplate={isDirectTemplate}
           />
         )}
       </DialogContent>

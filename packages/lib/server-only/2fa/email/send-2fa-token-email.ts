@@ -62,7 +62,7 @@ export const send2FATokenEmail = async ({ token, documentId }: Send2FATokenEmail
   }
 
   const twoFactorTokenToken = await generateTwoFactorTokenFromEmail({
-    documentId,
+    id: documentId,
     email: recipient.email,
   });
 

@@ -28,6 +28,7 @@ import { getPresignPostUrl } from '@documenso/lib/universal/upload/server-action
 
 import { ZGenericSuccessResponse, ZSuccessResponseSchema } from '../document-router/schema';
 import { authenticatedProcedure, maybeAuthenticatedProcedure, router } from '../trpc';
+import { accessAuthRequest2FAEmailForDirectTemplateRoute } from './access-auth-request-2fa-email';
 import {
   ZBulkSendTemplateMutationSchema,
   ZCreateDocumentFromDirectTemplateRequestSchema,
@@ -416,6 +417,7 @@ export const templateRouter = router({
         directTemplateExternalId,
         signedFieldValues,
         templateUpdatedAt,
+        twoFactorAuthCode,
       } = input;
 
       ctx.logger.info({
@@ -431,6 +433,7 @@ export const templateRouter = router({
         directTemplateExternalId,
         signedFieldValues,
         templateUpdatedAt,
+        twoFactorAuthCode,
         user: ctx.user
           ? {
               id: ctx.user.id,
@@ -595,4 +598,13 @@ export const templateRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Nested router for access authentication operations
+   *
+   * @private
+   */
+  accessAuth: router({
+    request2FAEmailForDirectTemplate: accessAuthRequest2FAEmailForDirectTemplateRoute,
+  }),
 });

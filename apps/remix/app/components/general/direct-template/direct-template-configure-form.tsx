@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useOptionalSession } from '@documenso/lib/client-only/providers/session';
+import { DocumentAccessAuth } from '@documenso/lib/types/document-auth';
 import type { TTemplate } from '@documenso/lib/types/template';
 import {
   DocumentReadOnlyFields,
@@ -64,6 +65,12 @@ export const DirectTemplateConfigureForm = ({
 
   const { recipients } = template;
   const { derivedRecipientAccessAuth } = useRequiredDocumentSigningAuthContext();
+
+  // Email should be locked if:
+  // 1. User is logged in (email already known), OR
+  // 2. "Require Account" auth is set (forces login, so email will be from account)
+  const requiresAccount = derivedRecipientAccessAuth.includes(DocumentAccessAuth.ACCOUNT);
+  const isEmailLocked = user?.email !== undefined || requiresAccount;
 
   const recipientsWithBlankDirectRecipientEmail = recipients.map((recipient) => {
     if (recipient.id === directTemplateRecipient.id) {
@@ -128,11 +135,7 @@ export const DirectTemplateConfigureForm = ({
                   <FormControl>
                     <Input
                       {...field}
-                      disabled={
-                        field.disabled ||
-                        derivedRecipientAccessAuth.length > 0 ||
-                        user?.email !== undefined
-                      }
+                      disabled={field.disabled || isEmailLocked}
                       placeholder="recipient@documenso.com"
                     />
                   </FormControl>

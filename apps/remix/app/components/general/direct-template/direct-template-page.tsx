@@ -7,6 +7,8 @@ import { type Recipient } from '@prisma/client';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
+import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import type { TTemplate } from '@documenso/lib/types/template';
 import { isRequiredField } from '@documenso/lib/utils/advanced-fields-helpers';
 import { trpc } from '@documenso/trpc/react';
@@ -89,7 +91,10 @@ export const DirectTemplatePageView = ({
     setStep('sign');
   };
 
-  const onSignDirectTemplateSubmit = async (fields: DirectTemplateLocalField[]) => {
+  const onSignDirectTemplateSubmit = async (
+    fields: DirectTemplateLocalField[],
+    accessAuthOptions?: TRecipientAccessAuth,
+  ) => {
     try {
       let directTemplateExternalId = searchParams?.get('externalId') || undefined;
 
@@ -103,6 +108,8 @@ export const DirectTemplatePageView = ({
         directRecipientName: fullName,
         directRecipientEmail: recipient.email,
         templateUpdatedAt: template.updatedAt,
+        twoFactorAuthCode:
+          accessAuthOptions?.type === 'TWO_FACTOR_AUTH' ? accessAuthOptions.token : undefined,
         signedFieldValues: fields.map((field) => {
           if (isRequiredField(field) && !field.signedValue) {
             throw new Error('Invalid configuration');
@@ -126,6 +133,14 @@ export const DirectTemplatePageView = ({
         await navigate(`/sign/${token}/complete`);
       }
     } catch (err) {
+      const error = AppError.parseError(err);
+
+      // Re-throw 2FA errors so they can be handled by DocumentSigningCompleteDialog
+      if (error.code === AppErrorCode.TWO_FACTOR_AUTH_FAILED) {
+        throw err;
+      }
+
+      // Show generic error for other errors
       toast({
         title: _(msg`Something went wrong`),
         description: _(
@@ -179,6 +194,7 @@ export const DirectTemplatePageView = ({
               directRecipientFields={directTemplateRecipient.fields}
               template={template}
               onSubmit={onSignDirectTemplateSubmit}
+              directTemplateToken={directTemplateToken}
             />
           </Stepper>
         </DocumentFlowFormContainer>
