@@ -16,6 +16,7 @@ import { promoteMemberToOwnerRoute } from './promote-member-to-owner';
 import { resealDocumentRoute } from './reseal-document';
 import { resetTwoFactorRoute } from './reset-two-factor-authentication';
 import { updateAdminOrganisationRoute } from './update-admin-organisation';
+import { updateOrganisationMemberRoleRoute } from './update-organisation-member-role';
 import { updateRecipientRoute } from './update-recipient';
 import { updateSiteSettingRoute } from './update-site-setting';
 import { updateSubscriptionClaimRoute } from './update-subscription-claim';
@@ -30,6 +31,7 @@ export const adminRouter = router({
   },
   organisationMember: {
     promoteToOwner: promoteMemberToOwnerRoute,
+    updateRole: updateOrganisationMemberRoleRoute,
   },
   claims: {
     find: findSubscriptionClaimsRoute,
