@@ -136,7 +136,7 @@ export const DirectTemplateConfigureForm = ({
                     <Input
                       {...field}
                       disabled={field.disabled || isEmailLocked}
-                      placeholder="recipient@documenso.com"
+                      placeholder="recipient@company.com"
                     />
                   </FormControl>
 
