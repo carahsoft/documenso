@@ -32,6 +32,7 @@ import { Card, CardContent } from '@documenso/ui/primitives/card';
 import { ElementVisible } from '@documenso/ui/primitives/element-visible';
 import { PDFViewer } from '@documenso/ui/primitives/pdf-viewer';
 
+import { BrandingLogo } from '~/components/general/branding-logo';
 import { DocumentSigningAutoSign } from '~/components/general/document-signing/document-signing-auto-sign';
 import { DocumentSigningCheckboxField } from '~/components/general/document-signing/document-signing-checkbox-field';
 import { DocumentSigningDateField } from '~/components/general/document-signing/document-signing-date-field';
@@ -177,7 +178,10 @@ export const DocumentSigningPageView = ({
 
   return (
     <DocumentSigningRecipientProvider recipient={recipient} targetSigner={targetSigner}>
-      <div className="mx-auto w-full max-w-screen-xl sm:px-6">
+      <div className="mx-auto -mt-4 w-full max-w-screen-xl px-4 md:px-8">
+        {!authUser && (
+          <BrandingLogo className="text-documenso mb-8 mt-4 h-6 w-auto sm:mt-8 dark:text-white" />
+        )}
         {document.team.teamGlobalSettings.brandingEnabled &&
           document.team.teamGlobalSettings.brandingLogo && (
             <img

@@ -9,6 +9,7 @@ import { getTemplateByDirectLinkToken } from '@documenso/lib/server-only/templat
 import { DocumentAccessAuth } from '@documenso/lib/types/document-auth';
 import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
 
+import { BrandingLogo } from '~/components/general/branding-logo';
 import { DirectTemplatePageView } from '~/components/general/direct-template/direct-template-page';
 import { DirectTemplateAuthPageView } from '~/components/general/direct-template/direct-template-signing-auth-page';
 import { DocumentSigningAuthProvider } from '~/components/general/document-signing/document-signing-auth-provider';
@@ -98,6 +99,9 @@ export default function DirectTemplatePage() {
         user={user}
       >
         <div className="mx-auto -mt-4 w-full max-w-screen-xl px-4 md:px-8">
+          {!user && (
+            <BrandingLogo className="text-documenso mb-8 mt-4 h-6 w-auto sm:mt-8 dark:text-white" />
+          )}
           <h1
             className="mt-4 block max-w-[20rem] truncate text-2xl font-semibold md:max-w-[30rem] md:text-3xl"
             title={template.title}
