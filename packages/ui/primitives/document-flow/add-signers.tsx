@@ -350,8 +350,8 @@ export const AddSignersFormPartial = ({
     index: number,
     suggestion: RecipientAutoCompleteOption,
   ) => {
-    setValue(`signers.${index}.email`, suggestion.email);
-    setValue(`signers.${index}.name`, suggestion.name || '');
+    setValue(`signers.${index}.email`, suggestion.email, { shouldValidate: true });
+    setValue(`signers.${index}.name`, suggestion.name || '', { shouldValidate: true });
   };
 
   const onDragEnd = useCallback(
