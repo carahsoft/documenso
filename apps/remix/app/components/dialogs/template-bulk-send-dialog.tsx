@@ -287,7 +287,7 @@ export const TemplateBulkSendDialog = ({
 
                     <p className="text-muted-foreground text-xs">
                       <Trans>
-                        Maximum file size: 4MB. Maximum 100 rows per upload. The external_id column
+                        Maximum file size: 4MB. Maximum 1000 rows per upload. The external_id column
                         is optional and can be left blank. Blank recipient values will use template
                         defaults.
                       </Trans>

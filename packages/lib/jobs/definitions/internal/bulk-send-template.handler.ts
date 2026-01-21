@@ -51,8 +51,8 @@ export const run = async ({
 
   const rows = parse(csvContent, { columns: true, skip_empty_lines: true });
 
-  if (rows.length > 100) {
-    throw new Error('Maximum 100 rows allowed per upload');
+  if (rows.length > 1000) {
+    throw new Error('Maximum 1000 rows allowed per upload');
   }
 
   const { recipients } = template;
