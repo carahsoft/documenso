@@ -283,6 +283,7 @@ export const DocumentSigningSignatureField = ({
             typedSignatureEnabled={typedSignatureEnabled}
             uploadSignatureEnabled={uploadSignatureEnabled}
             drawSignatureEnabled={drawSignatureEnabled}
+            defaultTypedSignatureName={typedSignatureEnabled !== false ? recipient.name : undefined}
           />
 
           <DocumentSigningDisclosure />

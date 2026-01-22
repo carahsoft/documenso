@@ -264,6 +264,26 @@ export const signFieldWithToken = async ({
       Object.assign(updatedField, {
         signature,
       });
+
+      // Save signature to user's profile if they are logged in and the email matches
+      // This allows registered users to reuse their signature on future documents
+      if (userId) {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { email: true, signature: true },
+        });
+
+        if (user && user.email.toLowerCase() === recipient.email.toLowerCase()) {
+          const signatureValue = signatureImageAsBase64 || typedSignature;
+
+          if (signatureValue && signatureValue !== user.signature) {
+            await tx.user.update({
+              where: { id: userId },
+              data: { signature: signatureValue },
+            });
+          }
+        }
+      }
     }
 
     await tx.documentAuditLog.create({

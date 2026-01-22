@@ -1,9 +1,9 @@
 import type { HTMLAttributes } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
+import { Trans } from '@lingui/react/macro';
 import { KeyboardIcon, UploadCloudIcon } from 'lucide-react';
 import { match } from 'ts-pattern';
-import { Trans } from '@lingui/react/macro';
 
 import { DocumentSignatureType } from '@documenso/lib/constants/document';
 import { isBase64Image } from '@documenso/lib/constants/signatures';
@@ -30,6 +30,13 @@ export type SignaturePadProps = Omit<HTMLAttributes<HTMLCanvasElement>, 'onChang
   uploadSignatureEnabled?: boolean;
   drawSignatureEnabled?: boolean;
 
+  /**
+   * When provided, this name will be used to pre-populate the typed signature
+   * if no initial value is provided. This creates a "cursive style" signature
+   * from the user's name.
+   */
+  defaultTypedSignatureName?: string;
+
   onValidityChange?: (isValid: boolean) => void;
 };
 
@@ -40,10 +47,14 @@ export const SignaturePad = ({
   typedSignatureEnabled = true,
   uploadSignatureEnabled = true,
   drawSignatureEnabled = true,
+  defaultTypedSignatureName,
 }: SignaturePadProps) => {
   const [imageSignature, setImageSignature] = useState(isBase64Image(value) ? value : '');
   const [drawSignature, setDrawSignature] = useState(isBase64Image(value) ? value : '');
-  const [typedSignature, setTypedSignature] = useState(isBase64Image(value) ? '' : value);
+  // Pre-populate typed signature with the user's name if no value is provided
+  const [typedSignature, setTypedSignature] = useState(
+    isBase64Image(value) ? '' : value || defaultTypedSignatureName || '',
+  );
 
   /**
    * This is cooked.
@@ -66,6 +77,12 @@ export const SignaturePad = ({
         return 'image';
       }
 
+      // If a default name is provided and typed signatures are enabled,
+      // prefer the text tab to show the pre-generated cursive signature
+      if (typedSignatureEnabled && defaultTypedSignatureName) {
+        return 'text';
+      }
+
       // Second passthrough to just select the first avaliable tab.
       if (drawSignatureEnabled) {
         return 'draw';
@@ -82,6 +99,17 @@ export const SignaturePad = ({
       throw new Error('No signature enabled');
     })(),
   );
+
+  // Trigger onChange when component mounts with a pre-populated typed signature
+  useEffect(() => {
+    if (!value && defaultTypedSignatureName && typedSignatureEnabled && tab === 'text') {
+      onChange?.({
+        type: DocumentSignatureType.TYPE,
+        value: defaultTypedSignatureName,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onImageSignatureChange = (value: string) => {
     setImageSignature(value);
