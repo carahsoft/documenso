@@ -148,7 +148,7 @@ export function AutoSizedText({
   }, [maxHeight, useRem]);
 
   return (
-    <div ref={childRef} className={cn('inline-block leading-none', className)}>
+    <div ref={childRef} className={cn('inline-block leading-tight', className)}>
       {children}
     </div>
   );

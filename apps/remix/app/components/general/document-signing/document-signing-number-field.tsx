@@ -57,6 +57,7 @@ export const DocumentSigningNumberField = ({
   const { recipient, isAssistantMode } = useDocumentSigningRecipientContext();
 
   const [showNumberModal, setShowNumberModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const safeFieldMeta = ZNumberFieldMeta.safeParse(field.fieldMeta);
   const parsedFieldMeta = safeFieldMeta.success ? safeFieldMeta.data : null;
@@ -110,8 +111,14 @@ export const DocumentSigningNumberField = ({
     }
   };
 
-  const onDialogSignClick = () => {
+  const onDialogSignClick = async () => {
+    // If editing an already-inserted field, remove it first
+    if (isEditing && field.inserted) {
+      await onRemove();
+    }
+
     setShowNumberModal(false);
+    setIsEditing(false);
 
     void executeActionAuthProcedure({
       onReauthFormSubmit: async (authOptions) => await onSign(authOptions),
@@ -160,6 +167,12 @@ export const DocumentSigningNumberField = ({
         variant: 'destructive',
       });
     }
+  };
+
+  const onEditField = () => {
+    setLocalNumber(field.customText ?? '');
+    setIsEditing(true);
+    setShowNumberModal(true);
   };
 
   const onPreSign = () => {
@@ -244,6 +257,7 @@ export const DocumentSigningNumberField = ({
       onPreSign={onPreSign}
       onSign={onSign}
       onRemove={onRemove}
+      onEdit={onEditField}
       type="Number"
     >
       {isLoading && <DocumentSigningFieldsLoader />}
@@ -253,7 +267,10 @@ export const DocumentSigningNumberField = ({
       )}
 
       {field.inserted && (
-        <DocumentSigningFieldsInserted textAlign={parsedFieldMeta?.textAlign}>
+        <DocumentSigningFieldsInserted
+          textAlign={parsedFieldMeta?.textAlign}
+          fontSize={parsedFieldMeta?.fontSize}
+        >
           {field.customText}
         </DocumentSigningFieldsInserted>
       )}
@@ -325,7 +342,7 @@ export const DocumentSigningNumberField = ({
                 type="button"
                 className="flex-1"
                 disabled={!localNumber || userInputHasErrors}
-                onClick={() => onDialogSignClick()}
+                onClick={async () => onDialogSignClick()}
               >
                 <Trans>Save</Trans>
               </Button>

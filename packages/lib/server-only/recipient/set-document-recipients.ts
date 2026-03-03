@@ -25,6 +25,10 @@ import { prisma } from '@documenso/prisma';
 
 import { getI18nInstance } from '../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
+import {
+  getBlockedDomainErrorMessage,
+  isEmailDomainBlocked,
+} from '../../constants/recipient-blocking';
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import { extractDerivedDocumentEmailSettings } from '../../types/document-email';
 import { canRecipientBeModified } from '../../utils/recipients';
@@ -110,6 +114,15 @@ export const setDocumentRecipients = async ({
     throw new AppError(AppErrorCode.UNAUTHORIZED, {
       message: 'You do not have permission to set the action auth',
     });
+  }
+
+  // Check for blocked email domains
+  for (const recipient of recipients) {
+    if (isEmailDomainBlocked(recipient.email)) {
+      throw new AppError(AppErrorCode.INVALID_REQUEST, {
+        message: getBlockedDomainErrorMessage(recipient.email),
+      });
+    }
   }
 
   const normalizedRecipients = recipients.map((recipient) => ({

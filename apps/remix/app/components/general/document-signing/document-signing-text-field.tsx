@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
@@ -84,13 +84,19 @@ export const DocumentSigningTextField = ({
     (!field.inserted && parsedFieldMeta?.text) ||
     (!field.inserted && parsedFieldMeta?.text && parsedFieldMeta?.readOnly);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   const [showCustomTextModal, setShowCustomTextModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [localText, setLocalCustomText] = useState(parsedFieldMeta?.text ?? '');
 
   useEffect(() => {
     if (!showCustomTextModal) {
-      setLocalCustomText(parsedFieldMeta?.text ?? '');
+      if (!isEditing) {
+        setLocalCustomText(parsedFieldMeta?.text ?? '');
+      }
       setErrors(initialErrors);
+      setIsEditing(false);
     }
   }, [showCustomTextModal]);
 
@@ -110,7 +116,7 @@ export const DocumentSigningTextField = ({
   /**
    * When the user clicks the sign button in the dialog where they enter the text field.
    */
-  const onDialogSignClick = () => {
+  const onDialogSignClick = async () => {
     if (parsedFieldMeta) {
       const validationErrors = validateTextField(localText, parsedFieldMeta, true);
 
@@ -121,6 +127,11 @@ export const DocumentSigningTextField = ({
         });
         return;
       }
+    }
+
+    // If editing an already-inserted field, remove it first
+    if (isEditing && field.inserted) {
+      await onRemove();
     }
 
     setShowCustomTextModal(false);
@@ -143,6 +154,12 @@ export const DocumentSigningTextField = ({
     }
 
     return false;
+  };
+
+  const onEditField = () => {
+    setLocalCustomText(field.customText ?? '');
+    setIsEditing(true);
+    setShowCustomTextModal(true);
   };
 
   const onSign = async (authOptions?: TRecipientActionAuth) => {
@@ -239,6 +256,7 @@ export const DocumentSigningTextField = ({
       onPreSign={onPreSign}
       onSign={onSign}
       onRemove={onRemove}
+      onEdit={onEditField}
       type="Text"
     >
       {isLoading && <DocumentSigningFieldsLoader />}
@@ -250,19 +268,33 @@ export const DocumentSigningTextField = ({
       )}
 
       {field.inserted && (
-        <DocumentSigningFieldsInserted textAlign={parsedFieldMeta?.textAlign}>
+        <DocumentSigningFieldsInserted
+          textAlign={parsedFieldMeta?.textAlign}
+          fontSize={parsedFieldMeta?.fontSize}
+          isMultiline
+        >
           {field.customText}
         </DocumentSigningFieldsInserted>
       )}
 
       <Dialog open={showCustomTextModal} onOpenChange={setShowCustomTextModal}>
-        <DialogContent>
+        <DialogContent
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            const el = textareaRef.current;
+            if (el) {
+              el.focus();
+              el.setSelectionRange(el.value.length, el.value.length);
+            }
+          }}
+        >
           <DialogTitle>
             {parsedFieldMeta?.label ? parsedFieldMeta?.label : <Trans>Text</Trans>}
           </DialogTitle>
 
           <div>
             <Textarea
+              ref={textareaRef}
               id="custom-text"
               placeholder={parsedFieldMeta?.placeholder ?? _(msg`Enter your text here`)}
               className={cn('mt-2 w-full rounded-md', {
@@ -328,7 +360,7 @@ export const DocumentSigningTextField = ({
                 type="button"
                 className="flex-1"
                 disabled={!localText || userInputHasErrors}
-                onClick={() => onDialogSignClick()}
+                onClick={async () => onDialogSignClick()}
               >
                 <Trans>Save</Trans>
               </Button>

@@ -12,6 +12,10 @@ import {
 import { DateTime } from 'luxon';
 import { match } from 'ts-pattern';
 
+import {
+  getBlockedDomainErrorMessage,
+  isEmailDomainBlocked,
+} from '@documenso/lib/constants/recipient-blocking';
 import { nanoid, prefixedId } from '@documenso/lib/universal/id';
 import { prisma } from '@documenso/prisma';
 
@@ -339,6 +343,15 @@ export const createDocumentFromTemplate = async ({
       });
     }
   });
+
+  // Check for blocked email domains in recipient overrides
+  for (const recipient of recipients) {
+    if (isEmailDomainBlocked(recipient.email)) {
+      throw new AppError(AppErrorCode.INVALID_REQUEST, {
+        message: getBlockedDomainErrorMessage(recipient.email),
+      });
+    }
+  }
 
   const { documentAuthOption: templateAuthOptions } = extractDocumentAuthMethods({
     documentAuth: template.authOptions,

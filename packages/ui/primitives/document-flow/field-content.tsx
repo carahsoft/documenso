@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 import { useLingui } from '@lingui/react';
 import type { DocumentMeta, Signature, TemplateMeta } from '@prisma/client';
 import { FieldType } from '@prisma/client';
@@ -10,6 +12,7 @@ import {
 import type { TFieldMetaSchema } from '@documenso/lib/types/field-meta';
 import { fromCheckboxValue } from '@documenso/lib/universal/field-checkbox';
 
+import { useShrinkToFit } from '../../lib/use-shrink-to-fit';
 import { cn } from '../../lib/utils';
 import { Checkbox } from '../checkbox';
 import { Label } from '../label';
@@ -188,21 +191,64 @@ export const FieldContent = ({ field, documentMeta }: FieldIconProps) => {
   }
 
   const textAlign = fieldMeta && 'textAlign' in fieldMeta ? fieldMeta.textAlign : 'left';
+  const customFontSize = fieldMeta && 'fontSize' in fieldMeta ? fieldMeta.fontSize : undefined;
+
+  const isMultiline = field.type === FieldType.TEXT;
 
   return (
-    <div className="flex h-full w-full items-center overflow-hidden">
-      <p
-        className={cn(
-          'text-foreground w-full whitespace-pre-wrap text-left text-[clamp(0.07rem,25cqw,0.825rem)] duration-200',
-          {
-            '!text-center': textAlign === 'center' || !textToDisplay,
-            '!text-right': textAlign === 'right',
-            'font-signature text-[clamp(0.07rem,25cqw,1.125rem)]': isSignatureField,
-          },
-        )}
-      >
-        {textToDisplay || labelToDisplay}
-      </p>
+    <FieldTextContent
+      textToDisplay={textToDisplay}
+      labelToDisplay={labelToDisplay}
+      textAlign={textAlign}
+      fontSize={customFontSize}
+      isSignatureField={isSignatureField}
+      isMultiline={isMultiline}
+    />
+  );
+};
+
+type FieldTextContentProps = {
+  textToDisplay?: string;
+  labelToDisplay: string;
+  textAlign?: 'left' | 'center' | 'right';
+  fontSize?: number;
+  isSignatureField?: boolean;
+  isMultiline?: boolean;
+};
+
+const FieldTextContent = ({
+  textToDisplay,
+  labelToDisplay,
+  textAlign,
+  fontSize: fontSizeProp,
+  isSignatureField,
+  isMultiline,
+}: FieldTextContentProps) => {
+  const fontSize = fontSizeProp ?? 14;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useShrinkToFit(containerRef, textRef, fontSize, isMultiline);
+
+  return (
+    <div
+      ref={containerRef}
+      className="pointer-events-none flex h-full w-full items-center overflow-hidden"
+    >
+      <div ref={textRef} className="w-full">
+        <p
+          className={cn(
+            'text-foreground w-full whitespace-pre-wrap break-words text-left leading-snug duration-200',
+            {
+              '!text-center': textAlign === 'center' || !textToDisplay,
+              '!text-right': textAlign === 'right',
+              'font-signature': isSignatureField,
+            },
+          )}
+        >
+          {textToDisplay || labelToDisplay}
+        </p>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,10 @@
 import { RecipientRole } from '@prisma/client';
 import { SendStatus, SigningStatus } from '@prisma/client';
 
+import {
+  getBlockedDomainErrorMessage,
+  isEmailDomainBlocked,
+} from '@documenso/lib/constants/recipient-blocking';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import type { TRecipientAccessAuthTypes } from '@documenso/lib/types/document-auth';
 import {
@@ -78,6 +82,15 @@ export const updateDocumentRecipients = async ({
     throw new AppError(AppErrorCode.UNAUTHORIZED, {
       message: 'You do not have permission to set the action auth',
     });
+  }
+
+  // Check for blocked email domains
+  for (const recipient of recipients) {
+    if (recipient.email && isEmailDomainBlocked(recipient.email)) {
+      throw new AppError(AppErrorCode.INVALID_REQUEST, {
+        message: getBlockedDomainErrorMessage(recipient.email),
+      });
+    }
   }
 
   const recipientsToUpdate = recipients.map((recipient) => {

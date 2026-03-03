@@ -5,6 +5,10 @@ import {
   DIRECT_TEMPLATE_RECIPIENT_EMAIL,
   DIRECT_TEMPLATE_RECIPIENT_NAME,
 } from '@documenso/lib/constants/direct-templates';
+import {
+  getBlockedDomainErrorMessage,
+  isEmailDomainBlocked,
+} from '@documenso/lib/constants/recipient-blocking';
 import { prisma } from '@documenso/prisma';
 
 import { AppError, AppErrorCode } from '../../errors/app-error';
@@ -68,6 +72,19 @@ export const setTemplateRecipients = async ({
     throw new AppError(AppErrorCode.UNAUTHORIZED, {
       message: 'You do not have permission to set the action auth',
     });
+  }
+
+  // Check for blocked email domains (skip direct template recipient placeholder)
+  for (const recipient of recipients) {
+    // Skip the direct template recipient placeholder email
+    const isDirectRecipient =
+      template.directLink && recipient.id === template.directLink.directTemplateRecipientId;
+
+    if (!isDirectRecipient && isEmailDomainBlocked(recipient.email)) {
+      throw new AppError(AppErrorCode.INVALID_REQUEST, {
+        message: getBlockedDomainErrorMessage(recipient.email),
+      });
+    }
   }
 
   const normalizedRecipients = recipients.map((recipient) => {

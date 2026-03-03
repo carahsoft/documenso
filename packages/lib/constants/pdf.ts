@@ -1,6 +1,6 @@
 import { NEXT_PUBLIC_WEBAPP_URL } from './app';
 
-export const DEFAULT_STANDARD_FONT_SIZE = 12;
+export const DEFAULT_STANDARD_FONT_SIZE = 14;
 export const DEFAULT_HANDWRITING_FONT_SIZE = 50;
 
 export const MIN_STANDARD_FONT_SIZE = 8;

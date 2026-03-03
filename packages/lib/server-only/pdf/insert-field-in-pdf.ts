@@ -381,15 +381,11 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       const customFontSize = meta?.success && meta.data.fontSize ? meta.data.fontSize : null;
       const textAlign = meta?.success && meta.data.textAlign ? meta.data.textAlign : 'left';
 
-      let fontSize = customFontSize || maxFontSize;
-      const textWidth = font.widthOfTextAtSize(field.customText, fontSize);
-      const textHeight = font.heightAtSize(fontSize);
+      // Add padding similar to web display (roughly 0.5rem equivalent in PDF units)
+      const padding = 8;
+      const availableWidth = fieldWidth - padding * 2;
 
-      // Scale font only if no custom font and height exceeds field height.
-      if (!customFontSize) {
-        const scalingFactor = Math.min(fieldHeight / textHeight, 1);
-        fontSize = Math.max(Math.min(fontSize * scalingFactor, maxFontSize), minFontSize);
-      }
+      let fontSize = customFontSize || maxFontSize;
 
       /**
        * Calculate whether the field should be multiline.
@@ -397,17 +393,40 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
        * - True = text will overflow downwards.
        * - False = text will overflow sideways.
        */
+      const textWidthAtSize = font.widthOfTextAtSize(field.customText, fontSize);
       const isMultiline =
         field.type === FieldType.TEXT &&
-        (textWidth > fieldWidth || field.customText.includes('\n'));
+        (textWidthAtSize > availableWidth || field.customText.includes('\n'));
 
-      // Add padding similar to web display (roughly 0.5rem equivalent in PDF units)
-      const padding = 8;
+      // Scale font to fit within the field boundaries.
+      // Line spacing multiplier: 1.5 accounts for PDF text field internal
+      // line spacing (similar to web's leading-snug 1.375 + field padding).
+      const LINE_SPACING = 1.5;
+
+      if (isMultiline) {
+        // For multiline: wrap text, then shrink if the wrapped height exceeds field height.
+        let wrapped = breakLongString(field.customText, availableWidth, font, fontSize);
+        let lineCount = wrapped.split('\n').length;
+        let wrappedHeight = font.heightAtSize(fontSize) * lineCount * LINE_SPACING;
+
+        while (wrappedHeight > fieldHeight && fontSize > minFontSize) {
+          fontSize = Math.max(fontSize * 0.9, minFontSize);
+          wrapped = breakLongString(field.customText, availableWidth, font, fontSize);
+          lineCount = wrapped.split('\n').length;
+          wrappedHeight = font.heightAtSize(fontSize) * lineCount * LINE_SPACING;
+        }
+      } else {
+        // For single-line: scale to fit both width and height.
+        const textWidth = font.widthOfTextAtSize(field.customText, fontSize);
+        const textHeight = font.heightAtSize(fontSize);
+        const scalingFactor = Math.min(availableWidth / textWidth, fieldHeight / textHeight, 1);
+        fontSize = Math.max(fontSize * scalingFactor, minFontSize);
+      }
 
       const textAlignmentOptions = getTextAlignmentOptions(textAlign, fieldX, isMultiline, padding);
 
       // Invert the Y axis since PDFs use a bottom-left coordinate system
-      let textFieldBoxY = pageHeight - fieldY - fieldHeight;
+      const textFieldBoxY = pageHeight - fieldY - fieldHeight;
       const textFieldBoxX = textAlignmentOptions.xPos;
 
       const textField = pdf.getForm().createTextField(`text.${field.secondaryId}`);
@@ -422,30 +441,23 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       let adjustedFieldX = textFieldBoxX;
       let adjustedFieldY = textFieldBoxY;
 
+      // Add buffer for descenders (roughly 15% of font height)
+      const descenderBuffer = font.heightAtSize(fontSize) * 0.15;
+      adjustedFieldHeight = fieldHeight + descenderBuffer;
+      adjustedFieldY = adjustedFieldY - descenderBuffer / 2;
+
       let textToInsert = field.customText;
 
       // The padding to use when fields go off the page.
       const pagePadding = 4;
 
-      // Handle multiline text, which will overflow on the Y axis.
+      // Handle multiline text — wrap and keep within field boundaries.
       if (isMultiline) {
         textToInsert = breakLongString(textToInsert, adjustedFieldWidth, font, fontSize);
 
         textField.enableMultiline();
         textField.disableCombing();
         textField.disableScrolling();
-
-        // Adjust the textFieldBox so it extends to the bottom of the page so text can wrap.
-        textFieldBoxY = pageHeight - fieldY - fieldHeight;
-
-        // Calculate how much PX from the current field to bottom of the page.
-        const fieldYOffset = pageHeight - (fieldY + fieldHeight) - pagePadding;
-
-        // Field height will be from current to bottom of page.
-        adjustedFieldHeight = fieldHeight + fieldYOffset;
-
-        // Need to move the field Y so it offsets the new field height.
-        adjustedFieldY = adjustedFieldY - fieldYOffset;
       }
 
       // Handle non-multiline text, which will overflow on the X axis.

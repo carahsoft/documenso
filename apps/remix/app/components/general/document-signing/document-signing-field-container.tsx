@@ -1,9 +1,7 @@
 import React from 'react';
 
-import { Trans } from '@lingui/react/macro';
 import { FieldType } from '@prisma/client';
-import { TooltipArrow } from '@radix-ui/react-tooltip';
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 
 import { type TRecipientActionAuth } from '@documenso/lib/types/document-auth';
 import { ZFieldMetaSchema } from '@documenso/lib/types/field-meta';
@@ -11,7 +9,6 @@ import type { FieldWithSignature } from '@documenso/prisma/types/field-with-sign
 import { FieldRootContainer } from '@documenso/ui/components/field/field';
 import { RECIPIENT_COLOR_STYLES } from '@documenso/ui/lib/recipient-colors';
 import { cn } from '@documenso/ui/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@documenso/ui/primitives/tooltip';
 
 import { useRequiredDocumentSigningAuthContext } from './document-signing-auth-provider';
 
@@ -40,6 +37,7 @@ export type DocumentSigningFieldContainerProps = {
    */
   onSign?: (documentAuthValue?: TRecipientActionAuth) => Promise<void> | void;
   onRemove?: (fieldType?: string) => Promise<void> | void;
+  onEdit?: () => void;
   type?:
     | 'Date'
     | 'Initials'
@@ -60,6 +58,7 @@ export const DocumentSigningFieldContainer = ({
   onPreSign,
   onSign,
   onRemove,
+  onEdit,
   children,
   type,
   tooltipText,
@@ -145,33 +144,28 @@ export const DocumentSigningFieldContainer = ({
           />
         )}
 
-        {type === 'Checkbox' && field.inserted && !loading && !readOnlyField && (
-          <button
-            className="absolute -bottom-10 flex items-center justify-evenly rounded-md border bg-gray-900 opacity-0 group-hover:opacity-100"
-            onClick={() => void onClearCheckBoxValues(type)}
-          >
-            <span className="rounded-md p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-100">
-              <X className="h-4 w-4" />
-            </span>
-          </button>
-        )}
+        {field.inserted && !loading && !readOnlyField && (
+          <div className="absolute -bottom-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-md border bg-gray-900 px-0.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+            {onEdit && (
+              <button
+                className="rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-100"
+                onClick={() => onEdit()}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
 
-        {type !== 'Checkbox' && field.inserted && !loading && !readOnlyField && (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <button className="absolute inset-0 z-10" onClick={onRemoveSignedFieldClick}></button>
-            </TooltipTrigger>
-
-            <TooltipContent
-              className="border-0 bg-orange-300 fill-orange-300 text-orange-900"
-              sideOffset={2}
+            <button
+              className="rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-100"
+              onClick={() =>
+                type === 'Checkbox'
+                  ? void onClearCheckBoxValues(type)
+                  : void onRemoveSignedFieldClick()
+              }
             >
-              {tooltipText && <p>{tooltipText}</p>}
-
-              <Trans>Remove</Trans>
-              <TooltipArrow />
-            </TooltipContent>
-          </Tooltip>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
 
         {(field.type === FieldType.RADIO || field.type === FieldType.CHECKBOX) &&
