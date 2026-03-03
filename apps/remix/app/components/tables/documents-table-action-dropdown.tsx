@@ -78,9 +78,10 @@ export const DocumentsTableActionDropdown = ({
   const onDownloadClick = async () => {
     try {
       const document = !recipient
-        ? await trpcClient.document.get.query({
-            documentId: row.id,
-          })
+        ? await trpcClient.document.get.query(
+            { documentId: row.id },
+            { context: { teamId: team?.id?.toString() } },
+          )
         : await trpcClient.document.getDocumentByToken.query({
             token: recipient.token,
           });
@@ -104,9 +105,10 @@ export const DocumentsTableActionDropdown = ({
   const onDownloadOriginalClick = async () => {
     try {
       const document = !recipient
-        ? await trpcClient.document.get.query({
-            documentId: row.id,
-          })
+        ? await trpcClient.document.get.query(
+            { documentId: row.id },
+            { context: { teamId: team?.id?.toString() } },
+          )
         : await trpcClient.document.getDocumentByToken.query({
             token: recipient.token,
           });

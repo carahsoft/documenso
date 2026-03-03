@@ -416,7 +416,7 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
           wrappedHeight = font.heightAtSize(fontSize) * lineCount * LINE_SPACING;
         }
       } else {
-        // For single-line: scale to fit both width and height.
+        // For single-line: scale font to fit within the field's available width and height.
         const textWidth = font.widthOfTextAtSize(field.customText, fontSize);
         const textHeight = font.heightAtSize(fontSize);
         const scalingFactor = Math.min(availableWidth / textWidth, fieldHeight / textHeight, 1);
@@ -432,24 +432,35 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       const textField = pdf.getForm().createTextField(`text.${field.secondaryId}`);
       textField.setAlignment(textAlignmentOptions.textAlignment);
 
-      /**
-       * From now on we will adjust the field size and position so the text
-       * overflows correctly in the X or Y axis depending on the field type.
-       */
-      let adjustedFieldWidth = fieldWidth - padding * 2; //
+      // The text field box width should match what we scaled the font against.
+      // PDF text fields add ~2px internal padding per side, so we make the box
+      // slightly wider than availableWidth to ensure the scaled text fits.
+      const pdfFieldInternalPadding = 4;
+      let adjustedFieldWidth = availableWidth + pdfFieldInternalPadding;
       let adjustedFieldHeight = fieldHeight;
-      let adjustedFieldX = textFieldBoxX;
+      let adjustedFieldX = textFieldBoxX - pdfFieldInternalPadding / 2;
       let adjustedFieldY = textFieldBoxY;
 
-      // Add buffer for descenders (roughly 15% of font height)
-      const descenderBuffer = font.heightAtSize(fontSize) * 0.15;
-      adjustedFieldHeight = fieldHeight + descenderBuffer;
-      adjustedFieldY = adjustedFieldY - descenderBuffer / 2;
+      // For center/right aligned single-line fields, use full field width
+      // so PDF TextAlignment centers/rights within the visible field bounds.
+      if (!isMultiline && textAlign === 'center') {
+        adjustedFieldX = fieldX;
+        adjustedFieldWidth = fieldWidth;
+      } else if (!isMultiline && textAlign === 'right') {
+        adjustedFieldX = fieldX;
+        adjustedFieldWidth = fieldWidth - padding;
+      }
+
+      // PDF text fields add internal padding that affects vertical positioning.
+      // Shift field up slightly to align with web, and extend height downward
+      // to prevent descenders (g, j, y, p, q) from being clipped.
+      const fontHeight = font.heightAtSize(fontSize);
+      const topShift = fontHeight * 0.1;
+      const descenderBuffer = fontHeight * 0.2;
+      adjustedFieldY = adjustedFieldY + topShift - descenderBuffer;
+      adjustedFieldHeight = adjustedFieldHeight + topShift + descenderBuffer;
 
       let textToInsert = field.customText;
-
-      // The padding to use when fields go off the page.
-      const pagePadding = 4;
 
       // Handle multiline text — wrap and keep within field boundaries.
       if (isMultiline) {
@@ -460,38 +471,9 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
         textField.disableScrolling();
       }
 
-      // Handle non-multiline text, which will overflow on the X axis.
-      if (!isMultiline) {
-        // Left align will extend all the way to the right of the page
-        if (textAlignmentOptions.textAlignment === TextAlignment.Left) {
-          adjustedFieldWidth = pageWidth - textFieldBoxX - pagePadding;
-        }
-
-        // Right align will extend all the way to the left of the page.
-        if (textAlignmentOptions.textAlignment === TextAlignment.Right) {
-          adjustedFieldWidth = textFieldBoxX + fieldWidth - pagePadding;
-          adjustedFieldX = adjustedFieldX - adjustedFieldWidth + fieldWidth;
-        }
-
-        // Center align will extend to the closest page edge, then use that * 2 as the width.
-        if (textAlignmentOptions.textAlignment === TextAlignment.Center) {
-          const fieldMidpoint = textFieldBoxX + fieldWidth / 2;
-
-          const isCloserToLeftEdge = fieldMidpoint < pageWidth / 2;
-
-          // If field is closer to left edge, the width must be based of the left.
-          if (isCloserToLeftEdge) {
-            adjustedFieldWidth = (textFieldBoxX - pagePadding) * 2 + fieldWidth;
-            adjustedFieldX = pagePadding;
-          }
-
-          // If field is closer to right edge, the width must be based of the right
-          if (!isCloserToLeftEdge) {
-            adjustedFieldWidth = (pageWidth - textFieldBoxX - pagePadding - fieldWidth / 2) * 2;
-            adjustedFieldX = pageWidth - adjustedFieldWidth - pagePadding;
-          }
-        }
-      }
+      // Single-line text stays within the field boundaries (matching web behavior
+      // where useShrinkToFit shrinks text to fit). No width extension needed since
+      // font was already scaled to fit availableWidth above.
 
       if (pageRotationInDegrees !== 0) {
         const adjustedPosition = adjustPositionForRotation(
