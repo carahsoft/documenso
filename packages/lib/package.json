@@ -12,7 +12,8 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "clean": "rimraf node_modules"
+    "clean": "rimraf node_modules",
+    "test": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.410.0",
@@ -60,6 +61,7 @@
   "devDependencies": {
     "@playwright/browser-chromium": "1.52.0",
     "@types/luxon": "^3.3.1",
-    "@types/pg": "^8.11.4"
+    "@types/pg": "^8.11.4",
+    "vitest": "^3.1.4"
   }
 }

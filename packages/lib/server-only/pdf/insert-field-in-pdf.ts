@@ -381,99 +381,34 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       const customFontSize = meta?.success && meta.data.fontSize ? meta.data.fontSize : null;
       const textAlign = meta?.success && meta.data.textAlign ? meta.data.textAlign : 'left';
 
-      // Add padding similar to web display (roughly 0.5rem equivalent in PDF units)
-      const padding = 8;
-      const availableWidth = fieldWidth - padding * 2;
+      const { fontSize, isMultiline, wrappedText } = calculateFontSizeToFit({
+        text: field.customText,
+        fieldWidth,
+        fieldHeight,
+        font,
+        initialFontSize: customFontSize || maxFontSize,
+        minFontSize,
+        isTextField: field.type === FieldType.TEXT,
+      });
 
-      let fontSize = customFontSize || maxFontSize;
-
-      /**
-       * Calculate whether the field should be multiline.
-       *
-       * - True = text will overflow downwards.
-       * - False = text will overflow sideways.
-       */
-      const textWidthAtSize = font.widthOfTextAtSize(field.customText, fontSize);
-      const isMultiline =
-        field.type === FieldType.TEXT &&
-        (textWidthAtSize > availableWidth || field.customText.includes('\n'));
-
-      // Scale font to fit within the field boundaries.
-      // Line spacing multiplier: 1.5 accounts for PDF text field internal
-      // line spacing (similar to web's leading-snug 1.375 + field padding).
-      const LINE_SPACING = 1.5;
-
-      if (isMultiline) {
-        // For multiline: wrap text, then shrink if the wrapped height exceeds field height.
-        let wrapped = breakLongString(field.customText, availableWidth, font, fontSize);
-        let lineCount = wrapped.split('\n').length;
-        let wrappedHeight = font.heightAtSize(fontSize) * lineCount * LINE_SPACING;
-
-        while (wrappedHeight > fieldHeight && fontSize > minFontSize) {
-          fontSize = Math.max(fontSize * 0.9, minFontSize);
-          wrapped = breakLongString(field.customText, availableWidth, font, fontSize);
-          lineCount = wrapped.split('\n').length;
-          wrappedHeight = font.heightAtSize(fontSize) * lineCount * LINE_SPACING;
-        }
-      } else {
-        // For single-line: scale font to fit within the field's available width and height.
-        const textWidth = font.widthOfTextAtSize(field.customText, fontSize);
-        const textHeight = font.heightAtSize(fontSize);
-        const scalingFactor = Math.min(availableWidth / textWidth, fieldHeight / textHeight, 1);
-        fontSize = Math.max(fontSize * scalingFactor, minFontSize);
-      }
-
-      const textAlignmentOptions = getTextAlignmentOptions(textAlign, fieldX, isMultiline, padding);
-
-      // Invert the Y axis since PDFs use a bottom-left coordinate system
       const textFieldBoxY = pageHeight - fieldY - fieldHeight;
-      const textFieldBoxX = textAlignmentOptions.xPos;
 
+      const textAlignment = textAlignmentMap[textAlign];
       const textField = pdf.getForm().createTextField(`text.${field.secondaryId}`);
-      textField.setAlignment(textAlignmentOptions.textAlignment);
+      textField.setAlignment(textAlignment);
 
-      // The text field box width should match what we scaled the font against.
-      // PDF text fields add ~2px internal padding per side, so we make the box
-      // slightly wider than availableWidth to ensure the scaled text fits.
-      const pdfFieldInternalPadding = 4;
-      let adjustedFieldWidth = availableWidth + pdfFieldInternalPadding;
-      let adjustedFieldHeight = fieldHeight;
-      let adjustedFieldX = textFieldBoxX - pdfFieldInternalPadding / 2;
+      const adjustedFieldWidth = fieldWidth;
+      const adjustedFieldHeight = fieldHeight;
+      let adjustedFieldX = fieldX;
       let adjustedFieldY = textFieldBoxY;
 
-      // For center/right aligned single-line fields, use full field width
-      // so PDF TextAlignment centers/rights within the visible field bounds.
-      if (!isMultiline && textAlign === 'center') {
-        adjustedFieldX = fieldX;
-        adjustedFieldWidth = fieldWidth;
-      } else if (!isMultiline && textAlign === 'right') {
-        adjustedFieldX = fieldX;
-        adjustedFieldWidth = fieldWidth - padding;
-      }
+      const textToInsert = isMultiline ? wrappedText : field.customText;
 
-      // PDF text fields add internal padding that affects vertical positioning.
-      // Shift field up slightly to align with web, and extend height downward
-      // to prevent descenders (g, j, y, p, q) from being clipped.
-      const fontHeight = font.heightAtSize(fontSize);
-      const topShift = fontHeight * 0.1;
-      const descenderBuffer = fontHeight * 0.2;
-      adjustedFieldY = adjustedFieldY + topShift - descenderBuffer;
-      adjustedFieldHeight = adjustedFieldHeight + topShift + descenderBuffer;
-
-      let textToInsert = field.customText;
-
-      // Handle multiline text — wrap and keep within field boundaries.
       if (isMultiline) {
-        textToInsert = breakLongString(textToInsert, adjustedFieldWidth, font, fontSize);
-
         textField.enableMultiline();
         textField.disableCombing();
         textField.disableScrolling();
       }
-
-      // Single-line text stays within the field boundaries (matching web behavior
-      // where useShrinkToFit shrinks text to fit). No width extension needed since
-      // font was already scaled to fit availableWidth above.
 
       if (pageRotationInDegrees !== 0) {
         const adjustedPosition = adjustPositionForRotation(
@@ -543,53 +478,112 @@ const adjustPositionForRotation = (
   };
 };
 
+/**
+ * Calculate the font size that fits text within the given field dimensions.
+ * Handles both single-line (scale to fit) and multi-line (word wrap + shrink).
+ */
+export function calculateFontSizeToFit({
+  text,
+  fieldWidth,
+  fieldHeight,
+  font,
+  initialFontSize,
+  minFontSize,
+  isTextField,
+}: {
+  text: string;
+  fieldWidth: number;
+  fieldHeight: number;
+  font: PDFFont;
+  initialFontSize: number;
+  minFontSize: number;
+  isTextField: boolean;
+}): { fontSize: number; isMultiline: boolean; wrappedText: string } {
+  // pdf-lib text fields use padding=1 (1pt per side) when borderWidth=0
+  // and clip content to: width - (borderWidth/2 + padding) * 2
+  const PDF_TEXT_FIELD_PADDING = 2; // 1pt per side
+  const LINE_SPACING = 1.375; // Match web's leading-snug
+  const renderWidth = fieldWidth - PDF_TEXT_FIELD_PADDING;
+  const renderHeight = fieldHeight - PDF_TEXT_FIELD_PADDING;
+
+  let fontSize = initialFontSize;
+
+  const isMultiline =
+    isTextField && (font.widthOfTextAtSize(text, fontSize) > renderWidth || text.includes('\n'));
+
+  // Matches the web's useShrinkToFit availableHeight function:
+  // - Multiline: uses full container height
+  // - Single-line: caps to one line height so wrapping triggers shrinking
+  const availableHeight = (size: number) => {
+    if (isMultiline) return renderHeight;
+    return Math.min(renderHeight, size * LINE_SPACING);
+  };
+
+  // Binary search for largest font size that fits (matches web algorithm).
+  // The web uses scrollHeight; we simulate with font metrics + word wrapping.
+  const absoluteMinFontSize = Math.max(4, fontSize * 0.15);
+
+  const fitsAtSize = (size: number): { fits: boolean; wrapped: string } => {
+    const wrapped = isMultiline ? breakLongString(text, renderWidth, font, size) : text;
+
+    if (!isMultiline) {
+      // Single-line: text must fit width-wise without wrapping.
+      // Use size * LINE_SPACING as the height measurement to match the web's
+      // scrollHeight (which is fontSize * lineHeight for a single line).
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const simulatedScrollHeight = size * LINE_SPACING;
+      return {
+        fits: textWidth <= renderWidth && simulatedScrollHeight <= availableHeight(size),
+        wrapped,
+      };
+    }
+
+    // Multiline: check wrapped text fits height
+    const lineCount = wrapped.split('\n').length;
+    const wrappedHeight = font.heightAtSize(size) * lineCount * LINE_SPACING;
+    return {
+      fits: wrappedHeight <= availableHeight(size),
+      wrapped,
+    };
+  };
+
+  // Check if it already fits at the desired size
+  const initialCheck = fitsAtSize(fontSize);
+  if (initialCheck.fits) {
+    return {
+      fontSize,
+      isMultiline,
+      wrappedText: isMultiline ? initialCheck.wrapped : text,
+    };
+  }
+
+  // Binary search: 20 iterations matches the web's useShrinkToFit
+  let lo = absoluteMinFontSize;
+  let hi = fontSize;
+  let lastWrapped = initialCheck.wrapped;
+
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    const check = fitsAtSize(mid);
+    if (check.fits) {
+      lo = mid;
+      lastWrapped = check.wrapped;
+    } else {
+      hi = mid;
+    }
+  }
+
+  fontSize = lo;
+  const finalWrapped = isMultiline ? breakLongString(text, renderWidth, font, fontSize) : text;
+
+  return { fontSize, isMultiline, wrappedText: finalWrapped };
+}
+
 const textAlignmentMap = {
   left: TextAlignment.Left,
   center: TextAlignment.Center,
   right: TextAlignment.Right,
 } as const;
-
-/**
- * Get the PDF-lib alignment position, and the X position of the field with padding included.
- *
- * @param textAlign - The text alignment of the field.
- * @param fieldX - The X position of the field.
- * @param isMultiline - Whether the field is multiline.
- * @param padding - The padding of the field. Defaults to 8.
- *
- * @returns The X position and text alignment for the field.
- */
-const getTextAlignmentOptions = (
-  textAlign: 'left' | 'center' | 'right',
-  fieldX: number,
-  isMultiline: boolean,
-  padding: number = 8,
-) => {
-  const textAlignment = textAlignmentMap[textAlign];
-
-  // For multiline, it needs to be centered so we just basic left padding.
-  if (isMultiline) {
-    return {
-      xPos: fieldX + padding,
-      textAlignment,
-    };
-  }
-
-  return match(textAlign)
-    .with('left', () => ({
-      xPos: fieldX + padding,
-      textAlignment,
-    }))
-    .with('center', () => ({
-      xPos: fieldX,
-      textAlignment,
-    }))
-    .with('right', () => ({
-      xPos: fieldX - padding,
-      textAlignment,
-    }))
-    .exhaustive();
-};
 
 /**
  * Break a long string into multiple lines so it fits within a given width,
@@ -605,7 +599,12 @@ const getTextAlignmentOptions = (
  * @param fontSize - The font size in points
  * @returns Object containing the result string and line count
  */
-function breakLongString(text: string, maxWidth: number, font: PDFFont, fontSize: number): string {
+export function breakLongString(
+  text: string,
+  maxWidth: number,
+  font: PDFFont,
+  fontSize: number,
+): string {
   // Handle empty text
   if (!text) {
     return '';
