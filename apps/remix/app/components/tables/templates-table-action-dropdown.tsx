@@ -2,7 +2,16 @@ import { useState } from 'react';
 
 import { Trans } from '@lingui/react/macro';
 import type { Recipient, Template, TemplateDirectLink } from '@prisma/client';
-import { Copy, Edit, FolderIcon, MoreHorizontal, Share2Icon, Trash2, Upload } from 'lucide-react';
+import {
+  Copy,
+  Edit,
+  FileUp,
+  FolderIcon,
+  MoreHorizontal,
+  Share2Icon,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { Link } from 'react-router';
 
 import { useSession } from '@documenso/lib/client-only/providers/session';
@@ -19,6 +28,7 @@ import { TemplateDeleteDialog } from '../dialogs/template-delete-dialog';
 import { TemplateDirectLinkDialog } from '../dialogs/template-direct-link-dialog';
 import { TemplateDuplicateDialog } from '../dialogs/template-duplicate-dialog';
 import { TemplateMoveToFolderDialog } from '../dialogs/template-move-to-folder-dialog';
+import { TemplateReplaceDocumentDialog } from '../dialogs/template-replace-document-dialog';
 
 export type TemplatesTableActionDropdownProps = {
   row: Template & {
@@ -28,6 +38,7 @@ export type TemplatesTableActionDropdownProps = {
   templateRootPath: string;
   teamId: number;
   onDelete?: () => Promise<void> | void;
+  onReplaceDocument?: () => Promise<void> | void;
 };
 
 export const TemplatesTableActionDropdown = ({
@@ -35,6 +46,7 @@ export const TemplatesTableActionDropdown = ({
   templateRootPath,
   teamId,
   onDelete,
+  onReplaceDocument,
 }: TemplatesTableActionDropdownProps) => {
   const { user } = useSession();
 
@@ -42,6 +54,7 @@ export const TemplatesTableActionDropdown = ({
   const [isTemplateDirectLinkDialogOpen, setTemplateDirectLinkDialogOpen] = useState(false);
   const [isDuplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [isMoveToFolderDialogOpen, setMoveToFolderDialogOpen] = useState(false);
+  const [isReplaceDocumentDialogOpen, setReplaceDocumentDialogOpen] = useState(false);
 
   const isOwner = row.userId === user.id;
   const isTeamTemplate = row.teamId === teamId;
@@ -80,6 +93,14 @@ export const TemplatesTableActionDropdown = ({
         <DropdownMenuItem onClick={() => setMoveToFolderDialogOpen(true)}>
           <FolderIcon className="mr-2 h-4 w-4" />
           <Trans>Move to Folder</Trans>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          disabled={!isOwner && !isTeamTemplate}
+          onClick={() => setReplaceDocumentDialogOpen(true)}
+        >
+          <FileUp className="mr-2 h-4 w-4" />
+          <Trans>Replace Document</Trans>
         </DropdownMenuItem>
 
         <TemplateBulkSendDialog
@@ -127,6 +148,13 @@ export const TemplatesTableActionDropdown = ({
         isOpen={isMoveToFolderDialogOpen}
         onOpenChange={setMoveToFolderDialogOpen}
         currentFolderId={row.folderId}
+      />
+
+      <TemplateReplaceDocumentDialog
+        templateId={row.id}
+        open={isReplaceDocumentDialogOpen}
+        onOpenChange={setReplaceDocumentDialogOpen}
+        onSuccess={onReplaceDocument}
       />
     </DropdownMenu>
   );

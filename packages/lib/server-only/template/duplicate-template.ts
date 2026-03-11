@@ -10,12 +10,14 @@ import { buildTeamWhereQuery } from '../../utils/teams';
 export type DuplicateTemplateOptions = TDuplicateTemplateMutationSchema & {
   userId: number;
   teamId: number;
+  targetTeamId?: number;
 };
 
 export const duplicateTemplate = async ({
   templateId,
   userId,
   teamId,
+  targetTeamId,
 }: DuplicateTemplateOptions) => {
   const template = await prisma.template.findUnique({
     where: {
@@ -41,6 +43,19 @@ export const duplicateTemplate = async ({
     throw new Error('Template not found.');
   }
 
+  // If duplicating to a different team, verify the user is a member of that team.
+  const destinationTeamId = targetTeamId ?? teamId;
+
+  if (targetTeamId && targetTeamId !== teamId) {
+    const targetTeam = await prisma.team.findUnique({
+      where: buildTeamWhereQuery({ teamId: targetTeamId, userId }),
+    });
+
+    if (!targetTeam) {
+      throw new Error('Target team not found or you are not a member.');
+    }
+  }
+
   const documentData = await prisma.documentData.create({
     data: {
       type: template.templateDocumentData.type,
@@ -52,9 +67,19 @@ export const duplicateTemplate = async ({
   let templateMeta: Prisma.TemplateCreateArgs['data']['templateMeta'] | undefined = undefined;
 
   if (template.templateMeta) {
+    const isCrossTeam = destinationTeamId !== teamId;
+
+    // Omit emailId and emailReplyTo when duplicating cross-team since they reference
+    // organisation-specific email records that may not exist in the target team's org.
+    const omitFields: (keyof typeof template.templateMeta)[] = ['id', 'templateId'];
+
+    if (isCrossTeam) {
+      omitFields.push('emailId', 'emailReplyTo');
+    }
+
     templateMeta = {
       create: {
-        ...omit(template.templateMeta, ['id', 'templateId']),
+        ...omit(template.templateMeta, omitFields),
         emailSettings: template.templateMeta.emailSettings || undefined,
       },
     };
@@ -63,7 +88,7 @@ export const duplicateTemplate = async ({
   const duplicatedTemplate = await prisma.template.create({
     data: {
       userId,
-      teamId,
+      teamId: destinationTeamId,
       title: template.title + ' (copy)',
       templateDocumentDataId: documentData.id,
       authOptions: template.authOptions || undefined,

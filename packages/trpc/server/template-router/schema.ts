@@ -131,6 +131,7 @@ export const ZCreateDocumentFromTemplateResponseSchema = ZDocumentSchema;
 
 export const ZDuplicateTemplateMutationSchema = z.object({
   templateId: z.number(),
+  targetTeamId: z.number().optional(),
 });
 
 export const ZDuplicateTemplateResponseSchema = ZTemplateLiteSchema;
@@ -254,6 +255,15 @@ export const ZBulkSendTemplateMutationSchema = z.object({
   sendImmediately: z.boolean(),
   folderId: z.string().optional(),
 });
+
+export const ZReplaceTemplateDocumentMutationSchema = z.object({
+  templateId: z.number(),
+  documentDataId: z.string().min(1),
+});
+
+export type TReplaceTemplateDocumentMutationSchema = z.infer<
+  typeof ZReplaceTemplateDocumentMutationSchema
+>;
 
 export type TCreateTemplateMutationSchema = z.infer<typeof ZCreateTemplateMutationSchema>;
 export type TDuplicateTemplateMutationSchema = z.infer<typeof ZDuplicateTemplateMutationSchema>;

@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 import { DocumentSigningOrder, SigningStatus } from '@prisma/client';
 import { ChevronLeft, LucideEdit } from 'lucide-react';
-import { Link, redirect, useNavigate } from 'react-router';
+import { Link, redirect, useNavigate, useRevalidator } from 'react-router';
 
 import { getSession } from '@documenso/auth/server/lib/utils/get-session';
 import { getTeamByUrl } from '@documenso/lib/server-only/team/get-team';
@@ -73,6 +73,7 @@ export default function TemplatePage() {
   const { templateDocumentData, fields, recipients, templateMeta } = template;
 
   const navigate = useNavigate();
+  const { revalidate } = useRevalidator();
 
   // Remap to fit the DocumentReadOnlyFields component.
   const readOnlyFields = fields.map((field) => {
@@ -173,6 +174,7 @@ export default function TemplatePage() {
                     teamId={team?.id}
                     templateRootPath={templateRootPath}
                     onDelete={async () => navigate(templateRootPath)}
+                    onReplaceDocument={async () => revalidate()}
                   />
                 </div>
               </div>

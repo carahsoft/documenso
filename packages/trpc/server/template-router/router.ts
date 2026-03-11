@@ -22,6 +22,7 @@ import { deleteTemplateDirectLink } from '@documenso/lib/server-only/template/de
 import { duplicateTemplate } from '@documenso/lib/server-only/template/duplicate-template';
 import { findTemplates } from '@documenso/lib/server-only/template/find-templates';
 import { getTemplateById } from '@documenso/lib/server-only/template/get-template-by-id';
+import { replaceTemplateDocument } from '@documenso/lib/server-only/template/replace-template-document';
 import { toggleTemplateDirectLink } from '@documenso/lib/server-only/template/toggle-template-direct-link';
 import { updateTemplate } from '@documenso/lib/server-only/template/update-template';
 import { getPresignPostUrl } from '@documenso/lib/universal/upload/server-actions';
@@ -47,6 +48,7 @@ import {
   ZFindTemplatesResponseSchema,
   ZGetTemplateByIdRequestSchema,
   ZGetTemplateByIdResponseSchema,
+  ZReplaceTemplateDocumentMutationSchema,
   ZToggleTemplateDirectLinkRequestSchema,
   ZToggleTemplateDirectLinkResponseSchema,
   ZUpdateTemplateRequestSchema,
@@ -263,6 +265,32 @@ export const templateRouter = router({
     }),
 
   /**
+   * @private
+   */
+  replaceTemplateDocument: authenticatedProcedure
+    .input(ZReplaceTemplateDocumentMutationSchema)
+    .output(ZSuccessResponseSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { teamId } = ctx;
+      const { templateId, documentDataId } = input;
+
+      ctx.logger.info({
+        input: {
+          templateId,
+        },
+      });
+
+      await replaceTemplateDocument({
+        userId: ctx.user.id,
+        teamId,
+        templateId,
+        documentDataId,
+      });
+
+      return ZGenericSuccessResponse;
+    }),
+
+  /**
    * @public
    */
   duplicateTemplate: authenticatedProcedure
@@ -278,11 +306,12 @@ export const templateRouter = router({
     .output(ZDuplicateTemplateResponseSchema)
     .mutation(async ({ input, ctx }) => {
       const { teamId } = ctx;
-      const { templateId } = input;
+      const { templateId, targetTeamId } = input;
 
       ctx.logger.info({
         input: {
           templateId,
+          targetTeamId,
         },
       });
 
@@ -290,6 +319,7 @@ export const templateRouter = router({
         userId: ctx.user.id,
         teamId,
         templateId,
+        targetTeamId,
       });
     }),
 
