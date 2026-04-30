@@ -35,7 +35,7 @@ export const sessionCookieOptions = {
   sameSite: useSecureCookies ? 'none' : 'lax',
   secure: useSecureCookies,
   domain: getCookieDomain(),
-  expires: new Date(Date.now() + AUTH_SESSION_LIFETIME),
+  maxAge: AUTH_SESSION_LIFETIME / 1000,
 } as const;
 
 export const extractSessionCookieFromHeaders = (headers: Headers): string | null => {
