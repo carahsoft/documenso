@@ -2,8 +2,10 @@ import { sValidator } from '@hono/standard-validator';
 import { Hono } from 'hono';
 import { PDFDocument } from 'pdf-lib';
 
+import { getOptionalSession } from '@documenso/auth/server/lib/utils/get-session';
 import { APP_DOCUMENT_UPLOAD_SIZE_LIMIT } from '@documenso/lib/constants/app';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { authorizeFileKeyAccess } from '@documenso/lib/server-only/document-data/authorize-file-key-access';
 import { createDocumentData } from '@documenso/lib/server-only/document-data/create-document-data';
 import { putFileServerSide } from '@documenso/lib/universal/upload/put-file.server';
 import {
@@ -12,7 +14,7 @@ import {
 } from '@documenso/lib/universal/upload/server-actions';
 
 import type { HonoEnv } from '../router';
-import { isTrustedOrigin, resolveFileRequestUser } from './files.helpers';
+import { getBearerToken, isTrustedOrigin, resolveFileRequestUser } from './files.helpers';
 import {
   type TGetPresignedGetUrlResponse,
   type TGetPresignedPostUrlResponse,
@@ -98,10 +100,24 @@ export const filesRoute = new Hono<HonoEnv>()
     }
   })
   .post('/presigned-get-url', sValidator('json', ZGetPresignedGetUrlRequestSchema), async (c) => {
-    const { key } = await c.req.json();
+    const { key, tokens } = c.req.valid('json');
+
+    const session = await getOptionalSession(c);
+
+    const bearerToken = getBearerToken(c);
+
+    const hasAccess = await authorizeFileKeyAccess({
+      key,
+      userId: session.isAuthenticated ? session.user?.id : undefined,
+      tokens: [...(tokens ?? []), ...(bearerToken ? [bearerToken] : [])],
+    });
+
+    if (!hasAccess) {
+      return c.json({ error: 'Not found' }, 404);
+    }
 
     try {
-      const { url } = await getPresignGetUrl(key || '');
+      const { url } = await getPresignGetUrl(key);
 
       return c.json({ url } satisfies TGetPresignedGetUrlResponse);
     } catch (err) {

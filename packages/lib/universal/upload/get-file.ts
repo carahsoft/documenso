@@ -29,6 +29,23 @@ const getFileFromBytes64 = (data: string) => {
   return binaryData;
 };
 
+/**
+ * Collect candidate access tokens for the current page (recipient token in the
+ * path, multi sign / embed tokens in the query string). The server validates
+ * every candidate against the requested file, so extra values are harmless.
+ */
+const getCandidateAccessTokens = () => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+
+  const pathSegments = window.location.pathname.split('/').filter((segment) => segment.length > 0);
+
+  return [...searchParams.getAll('token'), ...pathSegments.slice(0, 8)].slice(0, 32);
+};
+
 const getFileFromS3 = async (key: string) => {
   const getPresignedUrlResponse = await fetch(`/api/files/presigned-get-url`, {
     method: 'POST',
@@ -37,6 +54,7 @@ const getFileFromS3 = async (key: string) => {
     },
     body: JSON.stringify({
       key,
+      tokens: getCandidateAccessTokens(),
     }),
   });
 

@@ -26,6 +26,11 @@ export const ZGetPresignedPostUrlResponseSchema = z.object({
 
 export const ZGetPresignedGetUrlRequestSchema = z.object({
   key: z.string().min(1),
+  /**
+   * Candidate access tokens (recipient token, direct template token, share slug,
+   * embed presign token). Validated server side against the requested key.
+   */
+  tokens: z.array(z.string()).max(32).optional(),
 });
 
 export const ZGetPresignedGetUrlResponseSchema = z.object({
