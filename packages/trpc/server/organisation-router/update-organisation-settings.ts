@@ -2,6 +2,7 @@ import { OrganisationType } from '@prisma/client';
 
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { assertValidBrandingLogo } from '@documenso/lib/server-only/branding/assert-valid-branding-logo';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
 import { prisma } from '@documenso/prisma';
 
@@ -118,6 +119,12 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
         message: 'Personal organisations cannot update the sender details',
       });
     }
+
+    await assertValidBrandingLogo({
+      brandingLogo,
+      userId: user.id,
+      scope: { type: 'organisation', organisationId },
+    });
 
     await prisma.organisation.update({
       where: {
