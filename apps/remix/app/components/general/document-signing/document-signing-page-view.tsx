@@ -12,6 +12,7 @@ import { DEFAULT_DOCUMENT_DATE_FORMAT } from '@documenso/lib/constants/date-form
 import { PDF_VIEWER_PAGE_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { DEFAULT_DOCUMENT_TIME_ZONE } from '@documenso/lib/constants/time-zones';
 import type { DocumentAndSender } from '@documenso/lib/server-only/document/get-document-by-token';
+import { DocumentAuth } from '@documenso/lib/types/document-auth';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import {
   ZCheckboxFieldMeta,
@@ -23,6 +24,7 @@ import {
 import type { CompletedField } from '@documenso/lib/types/fields';
 import { isFieldUnsignedAndRequired } from '@documenso/lib/utils/advanced-fields-helpers';
 import { validateFieldsInserted } from '@documenso/lib/utils/fields';
+import { isValidRedirectUrl } from '@documenso/lib/utils/is-valid-redirect-url';
 import type { FieldWithSignatureAndFieldMeta } from '@documenso/prisma/types/field-with-signature-and-fieldmeta';
 import type { RecipientWithFields } from '@documenso/prisma/types/recipient-with-fields';
 import { trpc } from '@documenso/trpc/react';
@@ -73,7 +75,20 @@ export const DocumentSigningPageView = ({
 }: DocumentSigningPageViewProps) => {
   const { documentData, documentMeta } = document;
 
-  const { derivedRecipientAccessAuth, user: authUser } = useRequiredDocumentSigningAuthContext();
+  const {
+    derivedRecipientAccessAuth,
+    derivedRecipientActionAuth,
+    user: authUser,
+  } = useRequiredDocumentSigningAuthContext();
+
+  // Reassigning is only offered when no authentication is required (the server enforces the same).
+  const canReassign =
+    (derivedRecipientAccessAuth ?? []).length === 0 &&
+    (derivedRecipientActionAuth ?? []).filter((auth) => auth !== DocumentAuth.EXPLICIT_NONE)
+      .length === 0 &&
+    (recipient.role === RecipientRole.SIGNER ||
+      recipient.role === RecipientRole.APPROVER ||
+      recipient.role === RecipientRole.VIEWER);
 
   const hasAuthenticator = authUser?.twoFactorEnabled
     ? authUser.twoFactorEnabled && authUser.email === recipient.email
@@ -124,7 +139,7 @@ export const DocumentSigningPageView = ({
       timestamp: new Date().toISOString(),
     });
 
-    if (documentMeta?.redirectUrl) {
+    if (documentMeta?.redirectUrl && isValidRedirectUrl(documentMeta.redirectUrl)) {
       window.location.href = documentMeta.redirectUrl;
     } else {
       await navigate(`/sign/${recipient.token}/complete`);
@@ -253,12 +268,14 @@ export const DocumentSigningPageView = ({
           </div>
 
           <div className="flex gap-2">
-            <DocumentSigningReassignDialog
-              document={document}
-              token={recipient.token}
-              currentName={recipient.name}
-              currentEmail={recipient.email}
-            />
+            {canReassign && (
+              <DocumentSigningReassignDialog
+                document={document}
+                token={recipient.token}
+                currentName={recipient.name}
+                currentEmail={recipient.email}
+              />
+            )}
             <DocumentSigningRejectDialog document={document} token={recipient.token} />
           </div>
         </div>

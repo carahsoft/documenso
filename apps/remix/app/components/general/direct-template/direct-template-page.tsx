@@ -11,6 +11,7 @@ import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import type { TTemplate } from '@documenso/lib/types/template';
 import { isRequiredField } from '@documenso/lib/utils/advanced-fields-helpers';
+import { isValidRedirectUrl } from '@documenso/lib/utils/is-valid-redirect-url';
 import { trpc } from '@documenso/trpc/react';
 import { Card, CardContent } from '@documenso/ui/primitives/card';
 import { DocumentFlowFormContainer } from '@documenso/ui/primitives/document-flow/document-flow-root';
@@ -127,7 +128,7 @@ export const DirectTemplatePageView = ({
 
       const redirectUrl = template.templateMeta?.redirectUrl;
 
-      if (redirectUrl) {
+      if (redirectUrl && isValidRedirectUrl(redirectUrl)) {
         window.location.href = redirectUrl;
       } else {
         await navigate(`/sign/${token}/complete`);

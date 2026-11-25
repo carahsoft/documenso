@@ -11,6 +11,7 @@ import { prisma } from '@documenso/prisma';
 import type { SupportedLanguageCodes } from '../../constants/i18n';
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import type { TDocumentEmailSettings } from '../../types/document-email';
+import { isValidRedirectUrl } from '../../utils/is-valid-redirect-url';
 import { getDocumentWhereInput } from '../document/get-document-by-id';
 
 export type CreateDocumentMetaOptions = {
@@ -60,6 +61,13 @@ export const upsertDocumentMeta = async ({
   language,
   requestMetadata,
 }: CreateDocumentMetaOptions) => {
+  // Only http(s) redirect targets are allowed (javascript: and other schemes are never valid).
+  if (redirectUrl && !isValidRedirectUrl(redirectUrl)) {
+    throw new AppError(AppErrorCode.INVALID_BODY, {
+      message: 'redirectUrl must be a valid http or https URL',
+    });
+  }
+
   const { documentWhereInput, team } = await getDocumentWhereInput({
     documentId,
     userId,

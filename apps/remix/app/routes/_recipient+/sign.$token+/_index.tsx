@@ -21,6 +21,7 @@ import { getTeamSettings } from '@documenso/lib/server-only/team/get-team-settin
 import { getUserByEmail } from '@documenso/lib/server-only/user/get-user-by-email';
 import { DocumentAccessAuth } from '@documenso/lib/types/document-auth';
 import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
+import { isValidRedirectUrl } from '@documenso/lib/utils/is-valid-redirect-url';
 import { SigningCard3D } from '@documenso/ui/components/signing-card';
 
 import { DocumentSigningAuthPageView } from '~/components/general/document-signing/document-signing-auth-page';
@@ -136,7 +137,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     document.status === DocumentStatus.COMPLETED ||
     recipient.signingStatus === SigningStatus.SIGNED
   ) {
-    throw redirect(documentMeta?.redirectUrl || `/sign/${token}/complete`);
+    throw redirect(
+      documentMeta?.redirectUrl && isValidRedirectUrl(documentMeta.redirectUrl)
+        ? documentMeta.redirectUrl
+        : `/sign/${token}/complete`,
+    );
   }
 
   const [recipientSignature] = await getRecipientSignatures({ recipientId: recipient.id });
