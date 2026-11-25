@@ -29,6 +29,7 @@ import { extractDerivedDocumentMeta } from '../../utils/document';
 import { createDocumentAuthOptions, createRecipientAuthOptions } from '../../utils/document-auth';
 import { determineDocumentVisibility } from '../../utils/document-visibility';
 import { buildTeamWhereQuery } from '../../utils/teams';
+import { getUnattachedDocumentData } from '../document-data/get-unattached-document-data';
 import { getMemberRoles } from '../team/get-member-roles';
 import { getTeamSettings } from '../team/get-team-settings';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
@@ -102,26 +103,20 @@ export const createDocumentV2 = async ({
   });
 
   if (normalizePdf) {
-    const documentData = await prisma.documentData.findFirst({
-      where: {
-        id: documentDataId,
-      },
+    const documentData = await getUnattachedDocumentData(documentDataId);
+
+    const buffer = await getFileServerSide(documentData);
+
+    const normalizedPdf = await makeNormalizedPdf(Buffer.from(buffer));
+
+    const newDocumentData = await putPdfFileServerSide({
+      name: title.endsWith('.pdf') ? title : `${title}.pdf`,
+      type: 'application/pdf',
+      arrayBuffer: async () => Promise.resolve(normalizedPdf),
     });
 
-    if (documentData) {
-      const buffer = await getFileServerSide(documentData);
-
-      const normalizedPdf = await makeNormalizedPdf(Buffer.from(buffer));
-
-      const newDocumentData = await putPdfFileServerSide({
-        name: title.endsWith('.pdf') ? title : `${title}.pdf`,
-        type: 'application/pdf',
-        arrayBuffer: async () => Promise.resolve(normalizedPdf),
-      });
-
-      // eslint-disable-next-line require-atomic-updates
-      documentDataId = newDocumentData.id;
-    }
+    // eslint-disable-next-line require-atomic-updates
+    documentDataId = newDocumentData.id;
   }
 
   const authOptions = createDocumentAuthOptions({

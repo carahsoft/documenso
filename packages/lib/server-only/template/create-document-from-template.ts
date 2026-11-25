@@ -51,7 +51,9 @@ import {
   createRecipientAuthOptions,
   extractDocumentAuthMethods,
 } from '../../utils/document-auth';
+import { isValidRedirectUrl } from '../../utils/is-valid-redirect-url';
 import { buildTeamWhereQuery } from '../../utils/teams';
+import { getUnattachedDocumentData } from '../document-data/get-unattached-document-data';
 import { getTeamSettings } from '../team/get-team-settings';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
@@ -62,6 +64,9 @@ type FinalRecipient = Pick<
   templateRecipientId: number;
   fields: Field[];
 };
+
+const safeRedirectUrl = (value: string | null | undefined) =>
+  value && isValidRedirectUrl(value) ? value : undefined;
 
 export type CreateDocumentFromTemplateOptions = {
   templateId: number;
@@ -375,19 +380,8 @@ export const createDocumentFromTemplate = async ({
   let parentDocumentData = template.templateDocumentData;
 
   if (customDocumentDataId) {
-    const customDocumentData = await prisma.documentData.findFirst({
-      where: {
-        id: customDocumentDataId,
-      },
-    });
-
-    if (!customDocumentData) {
-      throw new AppError(AppErrorCode.NOT_FOUND, {
-        message: 'Custom document data not found',
-      });
-    }
-
-    parentDocumentData = customDocumentData;
+    // Only a freshly uploaded, unattached file may be used here.
+    parentDocumentData = await getUnattachedDocumentData(customDocumentDataId);
   }
 
   const documentData = await prisma.documentData.create({
@@ -423,7 +417,9 @@ export const createDocumentFromTemplate = async ({
             timezone: override?.timezone || template.templateMeta?.timezone,
             password: override?.password || template.templateMeta?.password,
             dateFormat: override?.dateFormat || template.templateMeta?.dateFormat,
-            redirectUrl: override?.redirectUrl || template.templateMeta?.redirectUrl,
+            redirectUrl: safeRedirectUrl(
+              override?.redirectUrl || template.templateMeta?.redirectUrl,
+            ),
             distributionMethod:
               override?.distributionMethod || template.templateMeta?.distributionMethod,
             emailSettings: override?.emailSettings || template.templateMeta?.emailSettings,

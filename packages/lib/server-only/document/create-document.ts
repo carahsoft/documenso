@@ -18,6 +18,7 @@ import { putPdfFileServerSide } from '../../universal/upload/put-file.server';
 import { extractDerivedDocumentMeta } from '../../utils/document';
 import { determineDocumentVisibility } from '../../utils/document-visibility';
 import { buildTeamWhereQuery } from '../../utils/teams';
+import { getUnattachedDocumentData } from '../document-data/get-unattached-document-data';
 import { getTeamById } from '../team/get-team';
 import { getTeamSettings } from '../team/get-team-settings';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
@@ -87,26 +88,20 @@ export const createDocument = async ({
   }
 
   if (normalizePdf) {
-    const documentData = await prisma.documentData.findFirst({
-      where: {
-        id: documentDataId,
-      },
+    const documentData = await getUnattachedDocumentData(documentDataId);
+
+    const buffer = await getFileServerSide(documentData);
+
+    const normalizedPdf = await makeNormalizedPdf(Buffer.from(buffer));
+
+    const newDocumentData = await putPdfFileServerSide({
+      name: title.endsWith('.pdf') ? title : `${title}.pdf`,
+      type: 'application/pdf',
+      arrayBuffer: async () => Promise.resolve(normalizedPdf),
     });
 
-    if (documentData) {
-      const buffer = await getFileServerSide(documentData);
-
-      const normalizedPdf = await makeNormalizedPdf(Buffer.from(buffer));
-
-      const newDocumentData = await putPdfFileServerSide({
-        name: title.endsWith('.pdf') ? title : `${title}.pdf`,
-        type: 'application/pdf',
-        arrayBuffer: async () => Promise.resolve(normalizedPdf),
-      });
-
-      // eslint-disable-next-line require-atomic-updates
-      documentDataId = newDocumentData.id;
-    }
+    // eslint-disable-next-line require-atomic-updates
+    documentDataId = newDocumentData.id;
   }
 
   // userTimezone is last because it's always passed in regardless of the organisation/team settings

@@ -9,6 +9,7 @@ import type { TDocumentAccessAuthTypes, TDocumentActionAuthTypes } from '../../t
 import { extractDerivedDocumentMeta } from '../../utils/document';
 import { createDocumentAuthOptions } from '../../utils/document-auth';
 import { buildTeamWhereQuery } from '../../utils/teams';
+import { getUnattachedDocumentData } from '../document-data/get-unattached-document-data';
 import { getTeamSettings } from '../team/get-team-settings';
 
 export type CreateTemplateOptions = {
@@ -87,6 +88,9 @@ export const createTemplate = async ({
       });
     }
   }
+
+  // Only a freshly uploaded, unattached file may be bound to a new template.
+  await getUnattachedDocumentData(templateDocumentDataId);
 
   return await prisma.template.create({
     data: {
