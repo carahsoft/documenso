@@ -41,8 +41,10 @@ export const replaceTemplateDocument = async ({
   }
 
   // Get the new document data record.
-  const newDocumentData = await prisma.documentData.findUnique({
-    where: { id: documentDataId },
+  // Only accept a freshly uploaded file that is not attached to anything yet, so a
+  // caller cannot point the template at another document's existing file.
+  const newDocumentData = await prisma.documentData.findFirst({
+    where: { id: documentDataId, document: null, template: null },
   });
 
   if (!newDocumentData) {

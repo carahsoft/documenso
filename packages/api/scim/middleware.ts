@@ -1,8 +1,16 @@
 import type { Context, Next } from 'hono';
+import { timingSafeEqual } from 'node:crypto';
 
 import type { HonoEnv } from '@documenso/remix/server/router';
 
 import { createSCIMError } from './utils';
+
+const isSameToken = (a: string, b: string) => {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+
+  return aBuffer.length === bBuffer.length && timingSafeEqual(aBuffer, bBuffer);
+};
 
 /**
  * SCIM Bearer Token Authentication Middleware
@@ -49,7 +57,7 @@ export const scimAuthMiddleware = async (c: Context<HonoEnv>, next: Next) => {
     );
   }
 
-  if (token !== scimToken) {
+  if (!isSameToken(token, scimToken)) {
     return c.json(
       createSCIMError({
         status: '401',
