@@ -98,6 +98,7 @@ export const validateSessionToken = async (token: string): Promise<SessionValida
           twoFactorEnabled: true,
           roles: true,
           signature: true,
+          disabled: true,
         },
       },
     },
@@ -107,7 +108,14 @@ export const validateSessionToken = async (token: string): Promise<SessionValida
     return { session: null, user: null, isAuthenticated: false };
   }
 
-  const { user, ...session } = result;
+  const { user: userWithDisabled, ...session } = result;
+
+  // Disabled accounts must not be able to use existing sessions.
+  if (userWithDisabled.disabled) {
+    return { session: null, user: null, isAuthenticated: false };
+  }
+
+  const { disabled: _disabled, ...user } = userWithDisabled;
 
   if (Date.now() >= session.expiresAt.getTime()) {
     await prisma.session.delete({ where: { id: sessionId } });

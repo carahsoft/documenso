@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 import { prisma } from '@documenso/prisma';
 
-import { ONE_DAY } from '../../constants/time';
+import { ONE_HOUR } from '../../constants/time';
 import { sendForgotPassword } from '../auth/send-forgot-password';
 
 export const forgotPassword = async ({ email }: { email: string }) => {
@@ -38,12 +38,21 @@ export const forgotPassword = async ({ email }: { email: string }) => {
 
   const token = crypto.randomBytes(18).toString('hex');
 
-  await prisma.passwordResetToken.create({
-    data: {
-      token,
-      expiry: new Date(Date.now() + ONE_DAY),
-      userId: user.id,
-    },
+  // Only a single reset token may be live at a time.
+  await prisma.$transaction(async (tx) => {
+    await tx.passwordResetToken.deleteMany({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    await tx.passwordResetToken.create({
+      data: {
+        token,
+        expiry: new Date(Date.now() + ONE_HOUR),
+        userId: user.id,
+      },
+    });
   });
 
   await sendForgotPassword({
