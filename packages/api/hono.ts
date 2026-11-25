@@ -26,9 +26,12 @@ tsRestHonoApp
   .all('/zapier/subscribe', async (c) => subscribeHandler(c.req.raw))
   .all('/zapier/unsubscribe', async (c) => unsubscribeHandler(c.req.raw));
 
-tsRestHonoApp.mount('/', async (request) => {
+// Note: this used to be `tsRestHonoApp.mount('/', ...)`. Newer hono versions strip the route base
+// path (`/api/v1`) from the request that `mount` passes on, but the ts-rest contract paths include
+// it. Use the original request instead so the contract paths keep matching.
+tsRestHonoApp.all('*', async (c) => {
   return fetchRequestHandler({
-    request,
+    request: c.req.raw,
     contract: ApiContractV1,
     router: ApiContractV1Implementation,
     options: {
