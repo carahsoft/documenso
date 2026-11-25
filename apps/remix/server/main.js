@@ -17,7 +17,8 @@ server.use(
   serveStatic({
     root: 'build/client',
     onFound: (path, c) => {
-      if (path.startsWith('./build/client/assets')) {
+      // The path prefix differs between @hono/node-server versions.
+      if (path.replace(/^\.\//, '').startsWith('build/client/assets')) {
         // Hard cache assets with hashed file names.
         c.header('Cache-Control', 'public, immutable, max-age=31536000');
       } else {

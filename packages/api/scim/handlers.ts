@@ -208,7 +208,7 @@ export const getUserHandler = async (c: Context<HonoEnv>) => {
     const userId = c.req.param('id');
 
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
     });
 
     if (!user) {
@@ -338,7 +338,7 @@ export const updateUserHandler = async (c: Context<HonoEnv>) => {
     const userData = parsed.data;
 
     const existingUser = await prisma.user.findUnique({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
     });
 
     if (!existingUser) {
@@ -367,7 +367,7 @@ export const updateUserHandler = async (c: Context<HonoEnv>) => {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
       data: updateData,
     });
 
@@ -409,7 +409,7 @@ export const patchUserHandler = async (c: Context<HonoEnv>) => {
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
     });
 
     if (!existingUser) {
@@ -474,7 +474,7 @@ export const patchUserHandler = async (c: Context<HonoEnv>) => {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
       data: updateData,
     });
 
@@ -503,7 +503,7 @@ export const deleteUserHandler = async (c: Context<HonoEnv>) => {
     const userId = c.req.param('id');
 
     const existingUser = await prisma.user.findUnique({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
     });
 
     if (!existingUser) {
@@ -517,7 +517,7 @@ export const deleteUserHandler = async (c: Context<HonoEnv>) => {
     }
 
     await prisma.user.delete({
-      where: { id: parseInt(userId, 10) },
+      where: { id: parseInt(userId ?? '', 10) },
     });
 
     return c.body(null, 204);

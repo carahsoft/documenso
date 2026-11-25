@@ -24,6 +24,8 @@ import type {
   TVerifyEmailSchema,
 } from '../server/types/email-password';
 
+type SuperJsonResult = Parameters<typeof superjson.deserialize>[0];
+
 type AuthClientType = ReturnType<typeof hc<AuthAppType>>;
 
 type TEmailPasswordSignin = InferRequestType<
@@ -76,7 +78,7 @@ export class AuthClient {
 
     const result = await response.json();
 
-    return superjson.deserialize<SessionValidationResult>(result);
+    return superjson.deserialize<SessionValidationResult>(result as SuperJsonResult);
   }
 
   public async getSessions() {
@@ -86,7 +88,7 @@ export class AuthClient {
 
     const result = await response.json();
 
-    return superjson.deserialize<{ sessions: ActiveSession[] }>(result);
+    return superjson.deserialize<{ sessions: ActiveSession[] }>(result as SuperJsonResult);
   }
 
   private async handleError<T>(response: ClientResponse<T>): Promise<void> {
@@ -105,7 +107,7 @@ export class AuthClient {
 
       const result = await response.json();
 
-      return superjson.deserialize<{ accounts: PartialAccount[] }>(result);
+      return superjson.deserialize<{ accounts: PartialAccount[] }>(result as SuperJsonResult);
     },
     delete: async (accountId: string) => {
       const response = await this.client['account'][':accountId'].$delete({
