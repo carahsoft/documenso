@@ -1,13 +1,13 @@
-import type { Prisma } from '@prisma/client';
 import { DocumentStatus } from '@prisma/client';
 import archiver from 'archiver';
 import type { LoaderFunctionArgs } from 'react-router';
 import { z } from 'zod';
 
 import { getSession } from '@documenso/auth/server/lib/utils/get-session';
-import { getTeamById } from '@documenso/lib/server-only/team/get-team';
+import { findDocuments } from '@documenso/lib/server-only/document/find-documents';
 import { getFileServerSide } from '@documenso/lib/universal/upload/get-file.server';
 import { prisma } from '@documenso/prisma';
+import { ExtendedDocumentStatus } from '@documenso/prisma/types/extended-document-status';
 
 const ZDownloadAllQuerySchema = z.object({
   teamId: z.string().optional(),
@@ -15,6 +15,11 @@ const ZDownloadAllQuerySchema = z.object({
   period: z.string().optional(),
   senderIds: z.string().optional(),
 });
+
+const MAX_DOCUMENTS = 200;
+
+const isPeriod = (value: string | undefined): value is '7d' | '14d' | '30d' | 'over30d' =>
+  value === '7d' || value === '14d' || value === '30d' || value === 'over30d';
 
 // Helper function to sanitize filename
 const sanitizeFilename = (filename: string): string => {
@@ -46,77 +51,63 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { teamId, folderId, period, senderIds } = queryParams.data;
 
   try {
-    console.log('Download all request:', { teamId, folderId, period, senderIds, userId: user.id });
+    console.log('Download all request:', { teamId, folderId, period, userId: user.id });
 
-    // Verify team access if teamId is provided
-    if (teamId) {
-      const parsedTeamId = parseInt(teamId);
-      if (isNaN(parsedTeamId)) {
-        return new Response('Invalid team ID', { status: 400 });
-      }
-
-      // This will throw if user doesn't have access to the team
-      try {
-        await getTeamById({
-          userId: user.id,
-          teamId: parsedTeamId,
-        });
-      } catch (error) {
-        console.error('Team access error:', error);
-        return new Response('Unauthorized - You do not have access to this team', { status: 403 });
-      }
+    // A team is required: the list page always sends one and without it there is no
+    // access scope to apply.
+    if (!teamId) {
+      return new Response('teamId is required', { status: 400 });
     }
 
-    // Build the where clause for finding completed documents
-    const where: Prisma.DocumentWhereInput = {
-      status: DocumentStatus.COMPLETED,
-      deletedAt: null,
-    };
+    const parsedTeamId = parseInt(teamId, 10);
 
-    // Add team filter if provided
-    if (teamId) {
-      where.teamId = parseInt(teamId);
-    } else {
-      // No team specified, only show user's own documents
-      where.userId = user.id;
+    if (isNaN(parsedTeamId)) {
+      return new Response('Invalid team ID', { status: 400 });
     }
 
-    // Add folder filter if provided
-    if (folderId) {
-      where.folderId = folderId;
+    const parsedSenderIds = senderIds
+      ? senderIds
+          .split(',')
+          .map(Number)
+          .filter((id) => Number.isInteger(id) && id > 0)
+      : undefined;
+
+    // Reuse the document list query so the zip contains exactly what the user can see in the
+    // list: team access, document visibility and sender filtering are all enforced there.
+    let found: Awaited<ReturnType<typeof findDocuments>>;
+
+    try {
+      found = await findDocuments({
+        userId: user.id,
+        teamId: parsedTeamId,
+        status: ExtendedDocumentStatus.COMPLETED,
+        folderId,
+        period: isPeriod(period) ? period : undefined,
+        senderIds: parsedSenderIds,
+        page: 1,
+        perPage: MAX_DOCUMENTS + 1,
+      });
+    } catch (error) {
+      console.error('Download all access error:', error);
+      return new Response('Unauthorized - You do not have access to this team', { status: 403 });
     }
 
-    // Add period filter if provided (format: '7d', '14d', '30d')
-    if (period) {
-      const daysAgo = parseInt(period.replace(/d$/, ''), 10);
-      if (!isNaN(daysAgo) && daysAgo > 0) {
-        const periodDate = new Date();
-        periodDate.setDate(periodDate.getDate() - daysAgo);
-        periodDate.setHours(0, 0, 0, 0); // Start of day
-        where.createdAt = { gte: periodDate };
-      }
+    if (found.data.length > MAX_DOCUMENTS) {
+      return new Response(`Too many documents (limit ${MAX_DOCUMENTS}). Narrow the filters.`, {
+        status: 413,
+      });
     }
 
-    // Add sender filter if provided
-    if (senderIds) {
-      const senderIdArray = senderIds.split(',').map(Number).filter(Boolean);
-      if (senderIdArray.length > 0) {
-        where.userId = { in: senderIdArray };
-      }
-    }
+    const documentIds = found.data.map((document) => document.id);
 
-    // Fetch all completed documents
-    console.log('Fetching documents with where clause:', JSON.stringify(where, null, 2));
-
+    // Load the file references only for the authorised documents.
     const documents = await prisma.document.findMany({
-      where,
-      include: {
-        documentData: true,
-        recipients: {
-          select: {
-            email: true,
-          },
-        },
+      where: { id: { in: documentIds }, status: DocumentStatus.COMPLETED, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        documentData: { select: { type: true, data: true } },
+        recipients: { select: { email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
