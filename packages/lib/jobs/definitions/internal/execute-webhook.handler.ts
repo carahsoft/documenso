@@ -2,6 +2,7 @@ import { Prisma, WebhookCallStatus } from '@prisma/client';
 
 import { prisma } from '@documenso/prisma';
 
+import { assertSafeWebhookUrl, sendWebhookRequest } from '../../../server-only/webhooks/ssrf';
 import type { JobRunIO } from '../../client/_internal/job';
 import type { TExecuteWebhookJobDefinition } from './execute-webhook';
 
@@ -30,8 +31,12 @@ export const run = async ({
       webhookEndpoint: url,
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
+    // Re-validated on every delivery, the connection itself is also pinned to
+    // validated addresses and redirects are never followed.
+    await assertSafeWebhookUrl(url);
+
+    const response = await sendWebhookRequest({
+      url,
       body: JSON.stringify(payloadData),
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +44,7 @@ export const run = async ({
       },
     });
 
-    const body = await response.text();
+    const body = response.body;
 
     let responseBody: Prisma.InputJsonValue | Prisma.JsonNullValueInput = Prisma.JsonNull;
 
@@ -57,7 +62,7 @@ export const run = async ({
         requestBody: payloadData as Prisma.InputJsonValue,
         responseCode: response.status,
         responseBody,
-        responseHeaders: Object.fromEntries(response.headers.entries()),
+        responseHeaders: response.headers,
         webhookId: webhook.id,
       },
     });
