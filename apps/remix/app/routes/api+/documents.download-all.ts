@@ -3,7 +3,7 @@ import archiver from 'archiver';
 import type { LoaderFunctionArgs } from 'react-router';
 import { z } from 'zod';
 
-import { getSession } from '@documenso/auth/server/lib/utils/get-session';
+import { getOptionalSession } from '@documenso/auth/server/lib/utils/get-session';
 import { findDocuments } from '@documenso/lib/server-only/document/find-documents';
 import { getFileServerSide } from '@documenso/lib/universal/upload/get-file.server';
 import { prisma } from '@documenso/prisma';
@@ -30,7 +30,7 @@ const sanitizeFilename = (filename: string): string => {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { user } = await getSession(request);
+  const { user } = await getOptionalSession(request);
 
   if (!user) {
     return new Response('Unauthorized', { status: 401 });
