@@ -34,6 +34,6 @@ export const maskRecipientTokensForDocument = <T extends DocumentWithRecipients>
 
   return {
     ...document,
-    Recipient: maskedRecipients,
+    recipients: maskedRecipients,
   };
 };

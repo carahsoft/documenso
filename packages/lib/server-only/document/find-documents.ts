@@ -293,11 +293,16 @@ export const findDocuments = async ({
     }),
   ]);
 
+  // Documents of the team being viewed already expose their recipient tokens to team members
+  // (document page, signing links), so only mask documents from elsewhere, e.g. received
+  // through the team email.
   const maskedData = data.map((document) =>
-    maskRecipientTokensForDocument({
-      document,
-      user,
-    }),
+    team && document.teamId === team.id
+      ? document
+      : maskRecipientTokensForDocument({
+          document,
+          user,
+        }),
   );
 
   return {

@@ -118,8 +118,11 @@ export const getDocumentWhereInput = async ({
       },
       teamId: team.id,
     },
-    // Or, if they are a recipient of the document.
+    // Or, if they are a recipient of a document that belongs to the team they are acting in.
+    // This must be scoped to the team, otherwise any user could pass their own team together with
+    // the id of a document in another tenant where their email happens to be a recipient.
     {
+      teamId: team.id,
       status: {
         not: DocumentStatus.DRAFT,
       },
