@@ -12,6 +12,7 @@ import {
 } from '@documenso/lib/universal/upload/server-actions';
 
 import type { HonoEnv } from '../router';
+import { isTrustedOrigin, resolveFileRequestUser } from './files.helpers';
 import {
   type TGetPresignedGetUrlResponse,
   type TGetPresignedPostUrlResponse,
@@ -20,13 +21,37 @@ import {
   ZUploadPdfRequestSchema,
 } from './files.types';
 
+const ALLOWED_PRESIGN_CONTENT_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+];
+
 export const filesRoute = new Hono<HonoEnv>()
+  /**
+   * Reject cross-origin cookie authenticated requests.
+   */
+  .use('*', async (c, next) => {
+    if (c.req.method === 'POST' && !isTrustedOrigin(c)) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    await next();
+  })
   /**
    * Uploads a document file to the appropriate storage location and creates
    * a document data record.
    */
   .post('/upload-pdf', sValidator('form', ZUploadPdfRequestSchema), async (c) => {
     try {
+      const user = await resolveFileRequestUser(c);
+
+      if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
       const { file } = c.req.valid('form');
 
       if (!file) {
@@ -88,8 +113,18 @@ export const filesRoute = new Hono<HonoEnv>()
   .post('/presigned-post-url', sValidator('json', ZGetPresignedPostUrlRequestSchema), async (c) => {
     const { fileName, contentType } = c.req.valid('json');
 
+    const user = await resolveFileRequestUser(c);
+
+    if (!user) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    if (!ALLOWED_PRESIGN_CONTENT_TYPES.includes(contentType.toLowerCase())) {
+      return c.json({ error: 'Unsupported content type' }, 400);
+    }
+
     try {
-      const { key, url } = await getPresignPostUrl(fileName, contentType);
+      const { key, url } = await getPresignPostUrl(fileName, contentType, user.userId);
 
       return c.json({ key, url } satisfies TGetPresignedPostUrlResponse);
     } catch (err) {

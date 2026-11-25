@@ -17,7 +17,7 @@ type File = {
   arrayBuffer: () => Promise<ArrayBuffer>;
 };
 
-export const putPdfFile = async (file: File) => {
+export const putPdfFile = async (file: File, options?: { presignToken?: string }) => {
   const formData = new FormData();
 
   // Create a proper File object from the data
@@ -30,6 +30,11 @@ export const putPdfFile = async (file: File) => {
   const response = await fetch('/api/files/upload-pdf', {
     method: 'POST',
     body: formData,
+    headers: options?.presignToken
+      ? {
+          authorization: `Bearer ${options.presignToken}`,
+        }
+      : undefined,
   });
 
   if (!response.ok) {

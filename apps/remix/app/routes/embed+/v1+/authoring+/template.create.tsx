@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 
 import { useLingui } from '@lingui/react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { putPdfFile } from '@documenso/lib/universal/upload/put-file';
 import { trpc } from '@documenso/trpc/react';
@@ -22,6 +22,10 @@ export default function EmbeddingAuthoringTemplateCreatePage() {
   const { _ } = useLingui();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Presign token used to authorise file uploads in the embedded authoring flow.
+  const presignToken = searchParams.get('token') ?? undefined;
 
   const [configuration, setConfiguration] = useState<TConfigureEmbedFormSchema | null>(null);
   const [fields, setFields] = useState<TConfigureFieldsFormSchema | null>(null);
@@ -58,11 +62,14 @@ export default function EmbeddingAuthoringTemplateCreatePage() {
 
       const fields = data.fields;
 
-      const documentData = await putPdfFile({
-        arrayBuffer: async () => Promise.resolve(configuration.documentData!.data.buffer),
-        name: configuration.documentData.name,
-        type: configuration.documentData.type,
-      });
+      const documentData = await putPdfFile(
+        {
+          arrayBuffer: async () => Promise.resolve(configuration.documentData!.data.buffer),
+          name: configuration.documentData.name,
+          type: configuration.documentData.type,
+        },
+        { presignToken },
+      );
 
       // Use the externalId from the URL fragment if available
       const metaWithExternalId = {
