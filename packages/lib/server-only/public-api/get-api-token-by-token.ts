@@ -61,6 +61,11 @@ export const getApiTokenByToken = async ({ token }: { token: string }) => {
     throw new Error('Invalid token');
   }
 
+  // Tokens of disabled users must stop working everywhere.
+  if (user.disabled) {
+    throw new Error('Invalid token');
+  }
+
   // Check if the token owner is an organisation MANAGER or ADMIN
   // If so, grant them access to all teams in the organisation
   let allowedTeamIds = [apiToken.teamId];

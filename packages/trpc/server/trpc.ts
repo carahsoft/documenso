@@ -67,7 +67,7 @@ const t = initTRPC
 /**
  * Middlewares
  */
-export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path }) => {
+export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path, meta }) => {
   const infoToLog: TrpcApiLog = {
     path,
     auth: ctx.metadata.auth,
@@ -80,6 +80,17 @@ export const authenticatedMiddleware = t.middleware(async ({ ctx, next, path }) 
 
   // Taken from `authenticatedMiddleware` in `@documenso/api/v1/middleware/authenticated.ts`.
   if (authorizationHeader) {
+    // API tokens are only meant for the public API (procedures exposed through OpenAPI). Without
+    // this a leaked integration token could call every internal procedure such as account
+    // deletion, passkey registration or API token creation. Never fall through to the session
+    // when an Authorization header is present: embed authoring sends a presign token on every call.
+    if (!meta?.openapi?.path) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'API tokens can only be used with the public API.',
+      });
+    }
+
     // Support for both "Authorization: Bearer api_xxx" and "Authorization: api_xxx"
     const [token] = (authorizationHeader || '').split('Bearer ').filter((s) => s.length > 0);
 

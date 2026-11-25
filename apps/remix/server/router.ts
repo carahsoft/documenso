@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 import { rateLimiter } from 'hono-rate-limiter';
 import { contextStorage } from 'hono/context-storage';
 import { requestId } from 'hono/request-id';
@@ -17,6 +18,7 @@ import { logger } from '@documenso/lib/utils/logger';
 import { openApiDocument } from '@documenso/trpc/server/open-api';
 
 import { filesRoute } from './api/files';
+import { isTrustedOrigin } from './api/files.helpers';
 import { type AppContext, appContext } from './context';
 import { appMiddleware } from './middleware';
 import { openApiTrpcServerHandler } from './trpc/hono-trpc-open-api';
@@ -99,6 +101,23 @@ app.route('/api/files', filesRoute);
 
 // SCIM 2.0 server.
 app.route('/api/scim/v2', scimRouter);
+
+// CSRF protection for the tRPC / OpenAPI endpoints. The session cookie is SameSite=None in
+// production and tRPC also accepts form encoded bodies, so a cross-site form post could otherwise
+// run mutations. Requests carrying an Authorization header cannot be forged by a cross-site form
+// (and are handled as API token / presign token requests), everything else must come from our origin.
+const csrfOriginMiddleware = async (c: Context<HonoEnv>, next: Next) => {
+  const method = c.req.method;
+
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && !isTrustedOrigin(c)) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  await next();
+};
+
+app.use('/api/trpc/*', csrfOriginMiddleware);
+app.use(`${API_V2_BETA_URL}/*`, csrfOriginMiddleware);
 
 // API servers.
 app.route('/api/v1', tsRestHonoApp);
