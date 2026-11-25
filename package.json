@@ -61,7 +61,8 @@
     "prisma": "^6.8.2",
     "prisma-extension-kysely": "^3.0.0",
     "prisma-kysely": "^1.8.0",
-    "nodemailer": "^10.6.1"
+    "nodemailer": "^10.6.1",
+    "@documenso/nodemailer-resend": "6.0.1"
   },
   "name": "@documenso/root",
   "workspaces": [
