@@ -22,6 +22,11 @@ export const removeSignedFieldWithToken = async ({
     },
   });
 
+  // Assistants may act on other recipients' fields, but only within their own document.
+  if (recipient.role === RecipientRole.ASSISTANT && !recipient.documentId) {
+    throw new Error(`Assistant recipient ${recipient.id} is not attached to a document`);
+  }
+
   const field = await prisma.field.findFirstOrThrow({
     where: {
       id: fieldId,
@@ -31,6 +36,7 @@ export const removeSignedFieldWithToken = async ({
               id: recipient.id,
             }
           : {
+              documentId: recipient.documentId,
               signingOrder: {
                 gte: recipient.signingOrder ?? 0,
               },
