@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { getFileServerSide } from '@documenso/lib/universal/upload/get-file.server';
 import { prisma } from '@documenso/prisma';
 
-import type { Route } from './+types/branding.logo.team.$teamId';
+import type { Route } from './+types/branding.logo.organisation.$orgId';
 
 export async function loader({ params }: Route.LoaderArgs) {
   const organisationId = params.orgId;
