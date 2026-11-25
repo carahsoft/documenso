@@ -88,7 +88,8 @@ export function DocumentSigningReassignDialog({
       if (onReassigned) {
         await onReassigned(name, email);
       } else {
-        await navigate(`/sign/${token}/reassigned`);
+        // The signing token is rotated on reassign, so the confirmation page cannot use it.
+        await navigate('/reassigned');
       }
     } catch (err) {
       toast({

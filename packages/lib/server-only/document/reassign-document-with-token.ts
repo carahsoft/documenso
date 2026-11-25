@@ -1,4 +1,11 @@
-import { DocumentStatus, ReadStatus, SendStatus, WebhookTriggerEvents } from '@prisma/client';
+import {
+  DocumentStatus,
+  ReadStatus,
+  RecipientRole,
+  SendStatus,
+  SigningStatus,
+  WebhookTriggerEvents,
+} from '@prisma/client';
 
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import type { RequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
@@ -11,6 +18,9 @@ import {
   ZWebhookDocumentSchema,
   mapDocumentToWebhookDocumentPayload,
 } from '../../types/webhook-payload';
+import { nanoid } from '../../universal/id';
+import { extractDocumentAuthMethods } from '../../utils/document-auth';
+import { getIsRecipientsTurnToSign } from '../recipient/get-is-recipient-turn';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
 export type ReassignDocumentWithTokenOptions = {
@@ -41,6 +51,8 @@ export async function reassignDocumentWithToken({
           userId: true,
           teamId: true,
           status: true,
+          deletedAt: true,
+          authOptions: true,
         },
       },
     },
@@ -54,23 +66,65 @@ export async function reassignDocumentWithToken({
     });
   }
 
-  // Check if document can be reassigned (not draft or completed)
-  if (document.status === DocumentStatus.DRAFT) {
+  // Only documents that are actively out for signing can be reassigned.
+  if (document.status !== DocumentStatus.PENDING || document.deletedAt) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
-      message: 'Cannot reassign draft document',
+      message: 'Only pending documents can be reassigned',
     });
   }
 
-  if (document.status === DocumentStatus.COMPLETED) {
+  // Check if recipient can be reassigned (not already signed or rejected)
+  if (recipient.signedAt || recipient.signingStatus !== SigningStatus.NOT_SIGNED) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
-      message: 'Cannot reassign completed document',
+      message: 'Cannot reassign recipient who has already signed or rejected',
     });
   }
 
-  // Check if recipient can be reassigned (not already signed)
-  if (recipient.signedAt) {
+  if (
+    recipient.role !== RecipientRole.SIGNER &&
+    recipient.role !== RecipientRole.APPROVER &&
+    recipient.role !== RecipientRole.VIEWER
+  ) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
-      message: 'Cannot reassign recipient who has already signed',
+      message: 'This recipient cannot be reassigned',
+    });
+  }
+
+  // Access and action auth are tied to the recipient's email address (account match, emailed 2FA
+  // codes). Letting the link holder change the email would bypass them, so reassigning is not
+  // available for documents that require any authentication.
+  const { recipientAccessAuthRequired, recipientActionAuthRequired } = extractDocumentAuthMethods({
+    documentAuth: document.authOptions,
+    recipientAuth: recipient.authOptions,
+  });
+
+  if (recipientAccessAuthRequired || recipientActionAuthRequired) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Reassigning is not available for documents that require authentication',
+    });
+  }
+
+  // Do not allow reassigning out of turn with sequential signing.
+  const isRecipientsTurn = await getIsRecipientsTurnToSign({ token }).catch(() => false);
+
+  if (!isRecipientsTurn) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'It is not this recipient’s turn to sign',
+    });
+  }
+
+  const duplicateRecipient = await prisma.recipient.findFirst({
+    where: {
+      documentId,
+      id: { not: recipient.id },
+      email: { equals: email, mode: 'insensitive' },
+    },
+    select: { id: true },
+  });
+
+  if (duplicateRecipient) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'This email address is already a recipient of the document',
     });
   }
 
@@ -78,8 +132,8 @@ export async function reassignDocumentWithToken({
   const oldName = recipient.name;
 
   // Update the recipient's name, email, and status
-  const updatedRecipient = await prisma.$transaction(async (tx) => {
-    const updated = await tx.recipient.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.recipient.update({
       where: {
         id: recipient.id,
       },
@@ -88,7 +142,20 @@ export async function reassignDocumentWithToken({
         email: email.toLowerCase(),
         readStatus: ReadStatus.NOT_OPENED,
         sendStatus: SendStatus.SENT,
+        // Rotate the token so the previous signing link stops working. The new token is only
+        // ever sent to the new recipient by email and is never returned to the caller.
+        token: nanoid(),
       },
+    });
+
+    // Anything the previous signer already filled in must not carry over to the new signer.
+    await tx.signature.deleteMany({
+      where: { recipientId: recipient.id },
+    });
+
+    await tx.field.updateMany({
+      where: { recipientId: recipient.id },
+      data: { inserted: false, customText: '' },
     });
 
     await tx.documentAuditLog.create({
@@ -109,8 +176,6 @@ export async function reassignDocumentWithToken({
         requestMetadata,
       }),
     });
-
-    return updated;
   });
 
   // Send email notification to the new recipient
@@ -148,5 +213,6 @@ export async function reassignDocumentWithToken({
     teamId: document.teamId ?? undefined,
   });
 
-  return updatedRecipient;
+  // Never return the recipient: it contains the new signing token.
+  return { success: true as const };
 }
