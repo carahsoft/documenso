@@ -2,7 +2,8 @@ import { createElement } from 'react';
 
 import { msg } from '@lingui/core/macro';
 import type { Document, DocumentMeta, Recipient, User } from '@prisma/client';
-import { DocumentStatus, SendStatus, WebhookTriggerEvents } from '@prisma/client';
+import { DocumentStatus, SendStatus, TeamMemberRole, WebhookTriggerEvents } from '@prisma/client';
+import { match } from 'ts-pattern';
 
 import { mailer } from '@documenso/email/mailer';
 import DocumentCancelTemplate from '@documenso/email/templates/document-cancel';
@@ -13,6 +14,7 @@ import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../types/document-audit-logs';
 import { extractDerivedDocumentEmailSettings } from '../../types/document-email';
+import { DocumentVisibility } from '../../types/document-visibility';
 import {
   ZWebhookDocumentSchema,
   mapDocumentToWebhookDocumentPayload,
@@ -71,6 +73,7 @@ export const deleteDocument = async ({
     });
   }
 
+  // Team members may only delete documents whose visibility their role permits.
   const isUserTeamMember = await getMemberRoles({
     teamId: document.teamId,
     reference: {
@@ -78,7 +81,12 @@ export const deleteDocument = async ({
       id: userId,
     },
   })
-    .then(() => true)
+    .then(({ teamRole }) =>
+      match(teamRole)
+        .with(TeamMemberRole.ADMIN, () => true)
+        .with(TeamMemberRole.MANAGER, () => document.visibility !== DocumentVisibility.ADMIN)
+        .otherwise(() => document.visibility === DocumentVisibility.EVERYONE),
+    )
     .catch(() => false);
 
   const isUserOwner = document.userId === userId;

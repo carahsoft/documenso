@@ -1,4 +1,4 @@
-import { SigningStatus } from '@prisma/client';
+import { DocumentStatus, SigningStatus } from '@prisma/client';
 
 import { jobs } from '@documenso/lib/jobs/client';
 import { prisma } from '@documenso/prisma';
@@ -37,6 +37,18 @@ export async function rejectDocumentWithToken({
   if (!recipient || !document) {
     throw new AppError(AppErrorCode.NOT_FOUND, {
       message: 'Document or recipient not found',
+    });
+  }
+
+  if (document.status !== DocumentStatus.PENDING) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Document is not pending',
+    });
+  }
+
+  if (recipient.signingStatus !== SigningStatus.NOT_SIGNED) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Recipient has already signed or rejected the document',
     });
   }
 
