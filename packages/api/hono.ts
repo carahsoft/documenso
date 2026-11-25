@@ -30,8 +30,19 @@ tsRestHonoApp
 // path (`/api/v1`) from the request that `mount` passes on, but the ts-rest contract paths include
 // it. Use the original request instead so the contract paths keep matching.
 tsRestHonoApp.all('*', async (c) => {
+  // ts-rest wraps the request in `new Request(...)`, which does not work with the lightweight
+  // request object of @hono/node-server, so build a standard Request from the incoming one.
+  const { method, headers } = c.req.raw;
+  const hasBody = method !== 'GET' && method !== 'HEAD';
+
+  const request = new Request(c.req.url, {
+    method,
+    headers,
+    body: hasBody ? await c.req.arrayBuffer() : undefined,
+  });
+
   return fetchRequestHandler({
-    request: c.req.raw,
+    request,
     contract: ApiContractV1,
     router: ApiContractV1Implementation,
     options: {
