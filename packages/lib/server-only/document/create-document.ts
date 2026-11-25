@@ -87,9 +87,10 @@ export const createDocument = async ({
     folderVisibility = folder.visibility;
   }
 
-  if (normalizePdf) {
-    const documentData = await getUnattachedDocumentData(documentDataId);
+  // Clients may only reference a fresh, unattached upload (ids are not secret).
+  const documentData = await getUnattachedDocumentData(documentDataId);
 
+  if (normalizePdf) {
     const buffer = await getFileServerSide(documentData);
 
     const normalizedPdf = await makeNormalizedPdf(Buffer.from(buffer));
