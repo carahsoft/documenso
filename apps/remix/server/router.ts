@@ -8,9 +8,11 @@ import type { Logger } from 'pino';
 import { tsRestHonoApp } from '@documenso/api/hono';
 import { scimRouter } from '@documenso/api/scim/router';
 import { auth } from '@documenso/auth/server';
+import { getOptionalSession } from '@documenso/auth/server/lib/utils/get-session';
 import { API_V2_BETA_URL } from '@documenso/lib/constants/app';
 import { jobsClient } from '@documenso/lib/jobs/client';
 import { getIpAddress } from '@documenso/lib/universal/get-ip-address';
+import { isAdmin } from '@documenso/lib/utils/is-admin';
 import { logger } from '@documenso/lib/utils/logger';
 import { openApiDocument } from '@documenso/trpc/server/open-api';
 
@@ -76,6 +78,18 @@ app.use(async (c, next) => {
 // Apply rate limit to /api/v1/*
 app.use('/api/v1/*', rateLimitMiddleware);
 app.use('/api/v2/*', rateLimitMiddleware);
+
+// Admin pages and their single fetch `.data` requests require an admin session.
+// Route loaders can be requested individually, so this must not rely on layouts.
+app.use('/admin/*', async (c, next) => {
+  const session = await getOptionalSession(c);
+
+  if (!session.isAuthenticated || !session.user || !isAdmin(session.user)) {
+    return c.text('Not found', 404);
+  }
+
+  await next();
+});
 
 // Auth server.
 app.route('/api/auth', auth);

@@ -6,10 +6,13 @@ import {
   AdminLeaderboardTable,
   type SigningVolume,
 } from '~/components/tables/admin-leaderboard-table';
+import { requireAdmin } from '~/utils/require-admin';
 
 import type { Route } from './+types/leaderboard';
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireAdmin(request);
+
   const url = new URL(request.url);
 
   const rawSortBy = url.searchParams.get('sortBy') || 'signingVolume';

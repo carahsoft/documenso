@@ -26,10 +26,13 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 import { AdminDocumentDeleteDialog } from '~/components/dialogs/admin-document-delete-dialog';
 import { DocumentStatus } from '~/components/general/document/document-status';
 import { AdminDocumentRecipientItemTable } from '~/components/tables/admin-document-recipient-item-table';
+import { requireAdmin } from '~/utils/require-admin';
 
 import type { Route } from './+types/documents.$id';
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
+  await requireAdmin(request);
+
   const id = Number(params.id);
 
   if (isNaN(id)) {
